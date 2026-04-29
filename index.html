@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI偏见检测工具 - 发现隐藏的偏见，构建更公平的AI</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 80px 20px;
+            text-align: center;
+            border-radius: 10px;
+            margin: 40px auto;
+            max-width: 900px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        
+        h1 {
+            font-size: 3em;
+            margin-bottom: 20px;
+            color: #667eea;
+            font-weight: 700;
+        }
+        
+        .subtitle {
+            font-size: 1.5em;
+            color: #666;
+            margin-bottom: 40px;
+        }
+        
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 30px;
+            margin: 60px auto;
+            max-width: 1000px;
+        }
+        
+        .feature-card {
+            background: white;
+            padding: 40px 30px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s ease;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .feature-icon {
+            font-size: 3em;
+            margin-bottom: 20px;
+        }
+        
+        .feature-title {
+            font-size: 1.4em;
+            margin-bottom: 15px;
+            color: #333;
+        }
+        
+        .feature-desc {
+            color: #666;
+            line-height: 1.8;
+        }
+        
+        .cta-section {
+            background: white;
+            padding: 60px 20px;
+            text-align: center;
+            border-radius: 10px;
+            margin: 60px auto;
+            max-width: 700px;
+            box-shadow: 0 15px 50px rgba(0, 0, 0, 0.25);
+        }
+        
+        .cta-title {
+            font-size: 2em;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        
+        .cta-desc {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+        
+        .waitlist-form {
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 8px;
+        }
+        
+        .user-types {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin: 50px auto 30px;
+            max-width: 800px;
+            justify-content: center;
+        }
+        
+        .user-type {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 15px 25px;
+            border-radius: 50px;
+            font-size: 1.1em;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        footer {
+            text-align: center;
+            padding: 40px;
+            color: white;
+            font-size: 0.9em;
+        }
+        
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2em;
+            }
+            
+            .subtitle {
+                font-size: 1.2em;
+            }
+            
+            header {
+                padding: 50px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔍 AI偏见检测工具</h1>
+            <p class="subtitle">发现隐藏的偏见，构建更公平的AI</p>
+            
+            <div class="user-types">
+                <span class="user-type">🎓 学术研究者</span>
+                <span class="user-type">🏢 企业合规团队</span>
+                <span class="user-type">📰 新闻记者</span>
+                <span class="user-type">⚖️ 政策制定者</span>
+            </div>
+        </header>
+        
+        <div class="features">
+            <div class="feature-card">
+                <div class="feature-icon">⚖️</div>
+                <h3 class="feature-title">性别偏见检测</h3>
+                <p class="feature-desc">检测AI输出中的性别刻板印象、职业偏见和歧视性语言</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">🌍</div>
+                <h3 class="feature-title">种族偏见检测</h3>
+                <p class="feature-desc">识别种族刻板印象、文化偏见和隐性歧视</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">📅</div>
+                <h3 class="feature-title">年龄偏见检测</h3>
+                <p class="feature-desc">发现年龄歧视和代际偏见</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">💼</div>
+                <h3 class="feature-title">职业偏见检测</h3>
+                <p class="feature-desc">检测职业刻板印象和阶级偏见</p>
+            </div>
+        </div>
+        
+        <div class="cta-section">
+            <h2 class="cta-title">🎯 加入等待名单</h2>
+            <p class="cta-desc">产品即将上线，加入等待名单获取优先体验权</p>
+            
+            <div class="waitlist-form">
+                <iframe src="https://docs.google.com/forms/d/e/1FAIpQLSePLACEHOLDER/viewform?embedded=true" width="100%" height="600" frameborder="0" marginheight="0" marginwidth="0">加载中...</iframe>
+            </div>
+        </div>
+        
+        <footer>
+            <p>© 2026 AI偏见检测工具 | 让AI更公平、更透明</p>
+        </footer>
+    </div>
+</body>
+</html>
