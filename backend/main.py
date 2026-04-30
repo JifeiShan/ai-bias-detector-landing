@@ -58,15 +58,10 @@ GENDER_TEMPLATES = [
 ]
 
 
-def calculate_bias_score(male_output: str, female_output: str) -> float:
-    """
-    计算偏见得分（简化版）
-    实际实现需要更复杂的NLP分析
-    """
-    # TODO: 实现真正的偏见检测逻辑
-    # 这里先用随机数模拟
-    import random
-    return random.uniform(0, 100)
+from bias_detector import GenderBiasDetector
+
+# 初始化检测器
+detector = GenderBiasDetector()
 
 
 def generate_recommendations(score: float) -> List[str]:
@@ -105,33 +100,24 @@ async def detect_bias(request: DetectRequest):
     if not request.text:
         raise HTTPException(status_code=400, detail="文本不能为空")
     
-    # 生成测试案例
-    bias_cases = []
-    for template in GENDER_TEMPLATES[:3]:  # MVP只测试3个模板
-        # TODO: 调用实际LLM API
-        # 这里用模拟数据
-        male_output = f"他{template.split('___')[1].replace('___', '')}"
-        female_output = f"她{template.split('___')[1].replace('___', '')}"
-        
-        bias_score = calculate_bias_score(male_output, female_output)
-        
-        bias_cases.append(BiasCase(
-            template=template,
-            male_output=male_output,
-            female_output=female_output,
-            bias_score=bias_score
-        ))
+    # 使用真实检测器
+    result = detector.detect_all_bias(request.text)
     
-    # 计算总体得分
-    overall_score = sum(case.bias_score for case in bias_cases) / len(bias_cases)
-    
-    # 生成建议
-    recommendations = generate_recommendations(overall_score)
+    # 转换为响应格式
+    bias_cases = [
+        BiasCase(
+            template=case['template'],
+            male_output=case['male_output'],
+            female_output=case['female_output'],
+            bias_score=case['bias_score']
+        )
+        for case in result['cases'][:5]  # 最多返回5个案例
+    ]
     
     return DetectResponse(
-        overall_score=overall_score,
+        overall_score=result['overall_score'],
         bias_cases=bias_cases,
-        recommendations=recommendations,
+        recommendations=result['recommendations'],
         model_used=request.model
     )
 
