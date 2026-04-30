@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI偏见检测 - 文本分析</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 800px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        h1 {
+            color: #333;
+            font-size: 32px;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 16px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 24px;
+        }
+
+        label {
+            display: block;
+            color: #555;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 200px;
+            transition: border-color 0.3s;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn-container {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        button {
+            padding: 14px 32px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #f5f5f5;
+            color: #666;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+            color: #666;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .result {
+            display: none;
+            margin-top: 30px;
+            padding: 24px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            border-left: 4px solid #667eea;
+        }
+
+        .result.active {
+            display: block;
+        }
+
+        .result h2 {
+            color: #333;
+            margin-bottom: 16px;
+        }
+
+        .score {
+            font-size: 48px;
+            font-weight: 700;
+            color: #667eea;
+            margin: 20px 0;
+        }
+
+        .score-label {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .bias-cases {
+            margin-top: 20px;
+        }
+
+        .bias-case {
+            background: white;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            border-left: 3px solid #ff6b6b;
+        }
+
+        .bias-case.type-career {
+            border-left-color: #4ecdc4;
+        }
+
+        .bias-case.type-personality {
+            border-left-color: #ffe66d;
+        }
+
+        .bias-case.type-ability {
+            border-left-color: #ff6b6b;
+        }
+
+        .bias-case h4 {
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .bias-case p {
+            color: #666;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .recommendations {
+            margin-top: 20px;
+            background: white;
+            padding: 16px;
+            border-radius: 8px;
+        }
+
+        .recommendations h3 {
+            color: #333;
+            margin-bottom: 12px;
+        }
+
+        .recommendations ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .recommendations li {
+            padding: 8px 0;
+            color: #555;
+            font-size: 14px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .recommendations li:last-child {
+            border-bottom: none;
+        }
+
+        .back-link {
+            display: block;
+            text-align: center;
+            margin-top: 20px;
+            color: #667eea;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>AI偏见检测工具</h1>
+        <p class="subtitle">检测文本中的性别偏见，让AI更公平</p>
+
+        <form id="detectForm">
+            <div class="form-group">
+                <label for="text-input">请输入需要检测的文本：</label>
+                <textarea 
+                    id="text-input" 
+                    name="text" 
+                    placeholder="例如：医生是男性，护士是女性。工程师更理性，老师更感性..."
+                    required
+                ></textarea>
+            </div>
+
+            <div class="btn-container">
+                <button type="button" class="btn-secondary" onclick="clearForm()">清空</button>
+                <button type="submit" class="btn-primary" id="submitBtn">开始检测</button>
+            </div>
+        </form>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>正在分析文本...</p>
+        </div>
+
+        <div class="result" id="result">
+            <h2>检测结果</h2>
+            <div class="score-label">总体偏见得分</div>
+            <div class="score" id="scoreValue">0</div>
+            
+            <div class="bias-cases" id="biasCases">
+                <!-- 偏见案例将动态插入这里 -->
+            </div>
+
+            <div class="recommendations" id="recommendations">
+                <h3>改进建议</h3>
+                <ul id="recommendationList">
+                    <!-- 建议将动态插入这里 -->
+                </ul>
+            </div>
+        </div>
+
+        <a href="../index.html" class="back-link">← 返回首页</a>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000'; // 开发环境
+        // const API_BASE = 'https://your-api-domain.com'; // 生产环境
+
+        document.getElementById('detectForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const text = document.getElementById('text-input').value.trim();
+            if (!text) {
+                alert('请输入需要检测的文本');
+                return;
+            }
+
+            // 显示加载状态
+            document.getElementById('loading').classList.add('active');
+            document.getElementById('result').classList.remove('active');
+            document.getElementById('submitBtn').disabled = true;
+
+            try {
+                const response = await fetch(`${API_BASE}/api/detect`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ text })
+                });
+
+                if (!response.ok) {
+                    throw new Error('检测失败，请稍后重试');
+                }
+
+                const data = await response.json();
+                displayResult(data);
+            } catch (error) {
+                alert(error.message || '网络错误，请检查后端服务是否启动');
+            } finally {
+                document.getElementById('loading').classList.remove('active');
+                document.getElementById('submitBtn').disabled = false;
+            }
+        });
+
+        function displayResult(data) {
+            // 显示分数
+            document.getElementById('scoreValue').textContent = data.overall_score.toFixed(2);
+            
+            // 显示偏见案例
+            const casesContainer = document.getElementById('biasCases');
+            casesContainer.innerHTML = '';
+            
+            if (data.bias_cases && data.bias_cases.length > 0) {
+                data.bias_cases.forEach(caseItem => {
+                    const caseElement = document.createElement('div');
+                    caseElement.className = `bias-case type-${caseItem.type}`;
+                    caseElement.innerHTML = `
+                        <h4>${caseItem.type_label}</h4>
+                        <p><strong>模板：</strong>${caseItem.template}</p>
+                        <p><strong>偏见得分：</strong>${caseItem.score.toFixed(2)}</p>
+                        <p><strong>说明：</strong>${caseItem.explanation}</p>
+                    `;
+                    casesContainer.appendChild(caseElement);
+                });
+            } else {
+                casesContainer.innerHTML = '<p style="color: #4ecdc4; font-weight: 600;">✓ 未检测到明显的性别偏见</p>';
+            }
+
+            // 显示建议
+            const recList = document.getElementById('recommendationList');
+            recList.innerHTML = '';
+            
+            if (data.recommendations && data.recommendations.length > 0) {
+                data.recommendations.forEach(rec => {
+                    const li = document.createElement('li');
+                    li.textContent = rec;
+                    recList.appendChild(li);
+                });
+            }
+
+            // 显示结果区域
+            document.getElementById('result').classList.add('active');
+        }
+
+        function clearForm() {
+            document.getElementById('text-input').value = '';
+            document.getElementById('result').classList.remove('active');
+        }
+    </script>
+</body>
+</html>
