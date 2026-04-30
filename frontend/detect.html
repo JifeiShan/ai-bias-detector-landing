@@ -4,6 +4,28 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI偏见检测 - 文本分析</title>
+    
+    <!-- Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=GA_MEASUREMENT_ID"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'GA_MEASUREMENT_ID'); // 替换为你的GA ID
+        
+        // 简单计数器（备份方案）
+        window.trackEvent = function(action, category, label) {
+            // Google Analytics事件
+            gtag('event', action, {
+                'event_category': category,
+                'event_label': label
+            });
+            
+            // 控制台日志（调试用）
+            console.log(`[Event] ${category} - ${action} - ${label}`);
+        };
+    </script>
+    
     <style>
         * {
             margin: 0;
@@ -298,13 +320,23 @@
         const API_BASE = 'http://localhost:8000'; // 开发环境
         // const API_BASE = 'https://your-api-domain.com'; // 生产环境
 
+        // 页面加载事件
+        if (window.trackEvent) {
+            trackEvent('page_view', 'Detect Page', 'loaded');
+        }
+
         document.getElementById('detectForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            
+
             const text = document.getElementById('text-input').value.trim();
             if (!text) {
                 alert('请输入需要检测的文本');
                 return;
+            }
+
+            // 跟踪点击检测按钮
+            if (window.trackEvent) {
+                trackEvent('click_detect_button', 'User Action', `text_length_${text.length}`);
             }
 
             // 显示加载状态
@@ -327,7 +359,16 @@
 
                 const data = await response.json();
                 displayResult(data);
+
+                // 跟踪检测成功
+                if (window.trackEvent) {
+                    trackEvent('detect_success', 'Detection Result', `score_${data.overall_score.toFixed(0)}_cases_${data.bias_cases.length}`);
+                }
             } catch (error) {
+                // 跟踪检测失败
+                if (window.trackEvent) {
+                    trackEvent('detect_error', 'Detection Error', error.message);
+                }
                 alert(error.message || '网络错误，请检查后端服务是否启动');
             } finally {
                 document.getElementById('loading').classList.remove('active');

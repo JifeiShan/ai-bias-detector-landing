@@ -4,6 +4,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI偏见检测工具 - 发现隐藏的偏见，构建更公平的AI</title>
+    
+    <!-- Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=GA_MEASUREMENT_ID"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'GA_MEASUREMENT_ID'); // 替换为你的GA ID
+        
+        window.trackEvent = function(action, category, label) {
+            gtag('event', action, {
+                'event_category': category,
+                'event_label': label
+            });
+            console.log(`[Event] ${category} - ${action} - ${label}`);
+        };
+    </script>
+    
     <style>
         * {
             margin: 0;
@@ -195,7 +213,7 @@
             <h2 class="cta-title">🚀 立即体验</h2>
             <p class="cta-desc">无需等待，现在就开始检测文本中的性别偏见</p>
             
-            <a href="frontend/detect.html" style="display: inline-block; padding: 18px 48px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 8px; font-size: 18px; font-weight: 600; box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4); transition: all 0.3s; margin-bottom: 40px;">
+            <a href="frontend/detect.html" onclick="trackEvent('click_start_detect', 'Landing Page CTA', 'main_button')" style="display: inline-block; padding: 18px 48px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 8px; font-size: 18px; font-weight: 600; box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4); transition: all 0.3s; margin-bottom: 40px;">
                 🔍 开始检测
             </a>
             
@@ -211,5 +229,12 @@
             <p>© 2026 AI偏见检测工具 | 让AI更公平、更透明</p>
         </footer>
     </div>
+    
+    <script>
+        // 页面加载事件跟踪
+        if (window.trackEvent) {
+            trackEvent('page_view', 'Landing Page', 'loaded');
+        }
+    </script>
 </body>
 </html>
