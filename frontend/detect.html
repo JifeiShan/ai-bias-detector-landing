@@ -344,14 +344,35 @@
             casesContainer.innerHTML = '';
             
             if (data.bias_cases && data.bias_cases.length > 0) {
-                data.bias_cases.forEach(caseItem => {
+                data.bias_cases.forEach((caseItem, index) => {
+                    // 根据偏见得分判断类型
+                    let type = 'ability';
+                    let typeLabel = '能力偏见';
+                    if (caseItem.template.includes('医生') || caseItem.template.includes('工程师') || caseItem.template.includes('CEO')) {
+                        type = 'career';
+                        typeLabel = '职业偏见';
+                    } else if (caseItem.template.includes('理性') || caseItem.template.includes('坚强') || caseItem.template.includes('性格')) {
+                        type = 'personality';
+                        typeLabel = '性格偏见';
+                    }
+                    
+                    // 生成说明
+                    let explanation = '';
+                    if (caseItem.bias_score > 0) {
+                        explanation = `检测到偏见：男性输出"${caseItem.male_output}"与女性输出"${caseItem.female_output}"存在刻板印象差异`;
+                    } else {
+                        explanation = '未检测到明显偏见';
+                    }
+                    
                     const caseElement = document.createElement('div');
-                    caseElement.className = `bias-case type-${caseItem.type}`;
+                    caseElement.className = `bias-case type-${type}`;
                     caseElement.innerHTML = `
-                        <h4>${caseItem.type_label}</h4>
+                        <h4>${typeLabel} (案例${index + 1})</h4>
                         <p><strong>模板：</strong>${caseItem.template}</p>
-                        <p><strong>偏见得分：</strong>${caseItem.score.toFixed(2)}</p>
-                        <p><strong>说明：</strong>${caseItem.explanation}</p>
+                        <p><strong>男性输出：</strong>${caseItem.male_output}</p>
+                        <p><strong>女性输出：</strong>${caseItem.female_output}</p>
+                        <p><strong>偏见得分：</strong>${caseItem.bias_score.toFixed(2)}</p>
+                        <p><strong>说明：</strong>${explanation}</p>
                     `;
                     casesContainer.appendChild(caseElement);
                 });
