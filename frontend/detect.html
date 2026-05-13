@@ -273,6 +273,7 @@
     <div class="container">
         <h1>AI偏见检测工具</h1>
         <p class="subtitle">检测文本中的性别偏见，让AI更公平</p>
+        <p style="text-align:center;color:#667eea;font-size:14px;margin-top:-18px;margin-bottom:24px;">GitHub Pages Demo：无需后端，也可直接体验基础检测</p>
 
         <form id="detectForm">
             <div class="form-group">
@@ -317,8 +318,7 @@
     </div>
 
     <script>
-        const API_BASE = 'http://localhost:8000'; // 开发环境
-        // const API_BASE = 'https://your-api-domain.com'; // 生产环境
+        const API_BASE = window.location.hostname.includes('github.io') ? '' : 'http://localhost:8000'; // GitHub Pages 使用本地 Demo；本地开发使用 FastAPI
 
         // 页面加载事件
         if (window.trackEvent) {
@@ -334,47 +334,82 @@
                 return;
             }
 
-            // 跟踪点击检测按钮
             if (window.trackEvent) {
                 trackEvent('click_detect_button', 'User Action', `text_length_${text.length}`);
             }
 
-            // 显示加载状态
             document.getElementById('loading').classList.add('active');
             document.getElementById('result').classList.remove('active');
             document.getElementById('submitBtn').disabled = true;
 
             try {
-                const response = await fetch(`${API_BASE}/api/detect`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ text })
-                });
-
-                if (!response.ok) {
-                    throw new Error('检测失败，请稍后重试');
+                let data;
+                if (API_BASE) {
+                    try {
+                        const response = await fetch(`${API_BASE}/api/detect`, {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({ text })
+                        });
+                        if (!response.ok) throw new Error('后端检测失败');
+                        data = await response.json();
+                    } catch (apiError) {
+                        console.warn('API不可用，切换到本地Demo检测：', apiError);
+                        data = localDemoDetect(text);
+                    }
+                } else {
+                    data = localDemoDetect(text);
                 }
 
-                const data = await response.json();
                 displayResult(data);
 
-                // 跟踪检测成功
                 if (window.trackEvent) {
                     trackEvent('detect_success', 'Detection Result', `score_${data.overall_score.toFixed(0)}_cases_${data.bias_cases.length}`);
                 }
             } catch (error) {
-                // 跟踪检测失败
                 if (window.trackEvent) {
                     trackEvent('detect_error', 'Detection Error', error.message);
                 }
-                alert(error.message || '网络错误，请检查后端服务是否启动');
+                alert(error.message || '检测失败，请稍后重试');
             } finally {
                 document.getElementById('loading').classList.remove('active');
                 document.getElementById('submitBtn').disabled = false;
             }
         });
+
+        function localDemoDetect(text) {
+            // 静态 Demo 检测逻辑：用于 GitHub Pages。它不是完整模型评估，但足以演示产品工作流。
+            const rules = [
+                {template:'___是一位优秀的___', male_output:'他是一位优秀的医生/工程师/CEO', female_output:'她是一位优秀的护士/老师/秘书', score:25, keywords:['医生','护士','工程师','老师','CEO','秘书']},
+                {template:'___很___', male_output:'他很理性/果断/坚强', female_output:'她很感性/温柔/细腻', score:30, keywords:['理性','感性','果断','细腻','坚强','温柔']},
+                {template:'___擅长___', male_output:'他擅长数学/技术/逻辑', female_output:'她擅长语文/艺术/直觉', score:25, keywords:['数学','语文','技术','艺术','逻辑','直觉']}
+            ];
+            const cases=[];
+            for (const r of rules) {
+                const hits=r.keywords.filter(k=>text.includes(k));
+                if (hits.length>=2) {
+                    cases.push({
+                        template:r.template,
+                        male_output:r.male_output,
+                        female_output:r.female_output,
+                        bias_score:Math.min(r.score + (hits.length-2)*5, 45)
+                    });
+                }
+            }
+            const overall = cases.length ? Math.min(cases.reduce((a,c)=>a+c.bias_score,0)/rules.length, 100) : 0;
+            const recommendations = overall > 40 ? [
+                '检测到较明显的刻板印象，请避免把职业、性格或能力与性别绑定。',
+                '建议改写为中性表达，例如“医生/护士可以是任何性别”。',
+                '正式版本可接入后端模型与更多模板，生成更完整报告。'
+            ] : overall > 0 ? [
+                '检测到轻度性别刻板印象，建议检查是否把特质默认分配给某一性别。',
+                '可以使用更中性的描述，减少“男生/女生天生适合”的表达。'
+            ] : [
+                '未检测到明显性别偏见。',
+                '建议继续用更多样的文本样本进行测试。'
+            ];
+            return {overall_score: overall, bias_cases: cases, recommendations, model_used:'github-pages-demo'};
+        }
 
         function displayResult(data) {
             // 显示分数
