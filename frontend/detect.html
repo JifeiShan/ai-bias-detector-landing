@@ -255,6 +255,33 @@
             border-bottom: none;
         }
 
+        .result-actions {
+            margin-top: 20px;
+            background: white;
+            padding: 16px;
+            border-radius: 8px;
+        }
+
+        .summary-box {
+            margin-top: 12px;
+            padding: 12px;
+            background: #f8f9fa;
+            border: 1px solid #e6e8ef;
+            border-radius: 8px;
+            color: #555;
+            font-size: 14px;
+            line-height: 1.7;
+            white-space: pre-wrap;
+        }
+
+        .copy-status {
+            display: inline-block;
+            margin-left: 10px;
+            color: #4ecdc4;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
         .back-link {
             display: block;
             text-align: center;
@@ -316,6 +343,14 @@
                     <!-- 建议将动态插入这里 -->
                 </ul>
             </div>
+
+            <div class="result-actions">
+                <h3>可复制结果摘要</h3>
+                <p style="color:#666;font-size:14px;line-height:1.6;">适合粘贴到报告、笔记或社交平台，方便试用者分享反馈。</p>
+                <button type="button" class="btn-secondary" style="margin-top:12px;padding:10px 16px;font-size:14px;" onclick="copyResultSummary()">复制结果摘要</button>
+                <span class="copy-status" id="copyStatus"></span>
+                <div class="summary-box" id="summaryBox"></div>
+            </div>
         </div>
 
         <a href="../index.html" class="back-link">← 返回首页</a>
@@ -323,6 +358,7 @@
 
     <script>
         const API_BASE = window.location.hostname.includes('github.io') ? '' : 'http://localhost:8000'; // GitHub Pages 使用本地 Demo；本地开发使用 FastAPI
+        let latestResultSummary = '';
 
         // 页面加载事件
         if (window.trackEvent) {
@@ -472,8 +508,64 @@
                 });
             }
 
+            latestResultSummary = buildResultSummary(data);
+            document.getElementById('summaryBox').textContent = latestResultSummary;
+            document.getElementById('copyStatus').textContent = '';
+
             // 显示结果区域
             document.getElementById('result').classList.add('active');
+        }
+
+        function buildResultSummary(data) {
+            const score = data.overall_score.toFixed(2);
+            const caseCount = data.bias_cases ? data.bias_cases.length : 0;
+            let riskLabel = '低风险';
+            if (data.overall_score >= 40) {
+                riskLabel = '高风险';
+            } else if (data.overall_score > 0) {
+                riskLabel = '中低风险';
+            }
+
+            const recommendations = (data.recommendations || [])
+                .slice(0, 3)
+                .map((rec, index) => `${index + 1}. ${rec}`)
+                .join('\n');
+
+            return [
+                'AI偏见检测结果摘要',
+                `总体偏见得分：${score}/100（${riskLabel}）`,
+                `发现偏见案例数：${caseCount}`,
+                `检测模式：${data.model_used || 'api'}`,
+                '',
+                '主要建议：',
+                recommendations || '未检测到明显问题，建议继续用更多文本样本测试。',
+                '',
+                '说明：当前 GitHub Pages 版本为原型 Demo，用于快速体验检测流程；正式评估需要接入后端模型与更完整模板库。'
+            ].join('\n');
+        }
+
+        async function copyResultSummary() {
+            if (!latestResultSummary) {
+                alert('请先完成一次检测，再复制结果摘要。');
+                return;
+            }
+
+            try {
+                await navigator.clipboard.writeText(latestResultSummary);
+                document.getElementById('copyStatus').textContent = '已复制';
+            } catch (error) {
+                const temp = document.createElement('textarea');
+                temp.value = latestResultSummary;
+                document.body.appendChild(temp);
+                temp.select();
+                document.execCommand('copy');
+                document.body.removeChild(temp);
+                document.getElementById('copyStatus').textContent = '已复制';
+            }
+
+            if (window.trackEvent) {
+                trackEvent('copy_result_summary', 'User Action', 'summary_copied');
+            }
         }
 
 
