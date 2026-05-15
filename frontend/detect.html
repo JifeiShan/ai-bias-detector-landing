@@ -284,6 +284,10 @@
                     placeholder="例如：医生是男性，护士是女性。工程师更理性，老师更感性..."
                     required
                 ></textarea>
+                <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;">
+                    <button type="button" class="btn-secondary" style="padding:10px 14px;font-size:14px;" onclick="fillSample('医生是男性，护士是女性。工程师更理性，老师更感性。男生擅长数学，女生擅长语文。')">填入高偏见示例</button>
+                    <button type="button" class="btn-secondary" style="padding:10px 14px;font-size:14px;" onclick="fillSample('医生、护士、工程师和老师都可以由任何性别的人胜任。每个人的能力和性格不应由性别决定。')">填入中性示例</button>
+                </div>
             </div>
 
             <div class="btn-container">
@@ -470,6 +474,15 @@
 
             // 显示结果区域
             document.getElementById('result').classList.add('active');
+        }
+
+
+        function fillSample(text) {
+            document.getElementById('text-input').value = text;
+            document.getElementById('result').classList.remove('active');
+            if (window.trackEvent) {
+                trackEvent('fill_sample', 'User Action', text.length > 40 ? 'biased_sample' : 'neutral_sample');
+            }
         }
 
         function clearForm() {
