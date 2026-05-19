@@ -427,6 +427,7 @@
                 <h3>可复制结果摘要</h3>
                 <p style="color:#666;font-size:14px;line-height:1.6;">适合粘贴到报告、笔记或社交平台，方便试用者分享反馈。</p>
                 <button type="button" class="btn-secondary" style="margin-top:12px;padding:10px 16px;font-size:14px;" onclick="copyResultSummary()">复制结果摘要</button>
+                <button type="button" class="btn-secondary" style="margin-top:12px;padding:10px 16px;font-size:14px;" onclick="copyRewritePackage()">复制改写建议包</button>
                 <span class="copy-status" id="copyStatus"></span>
                 <div class="summary-box" id="summaryBox"></div>
             </div>
@@ -470,6 +471,7 @@
     <script>
         const API_BASE = window.location.hostname.includes('github.io') ? '' : 'http://localhost:8000'; // GitHub Pages 使用本地 Demo；本地开发使用 FastAPI
         let latestResultSummary = '';
+        let latestRewritePackage = '';
 
         // 页面加载事件
         if (window.trackEvent) {
@@ -596,7 +598,8 @@
                         explanation = '未检测到明显偏见';
                     }
                     
-                    const rewriteSuggestion = buildRewriteSuggestion(caseItem, typeLabel);
+                    const rewriteSuggestions = buildRewriteSuggestions(caseItem, typeLabel);
+                    const rewriteList = rewriteSuggestions.map((item, i) => `<li>${i + 1}. ${item}</li>`).join('');
                     const riskLevel = caseItem.bias_score >= 40 ? '高风险' : caseItem.bias_score > 0 ? '需留意' : '低风险';
                     const caseElement = document.createElement('div');
                     caseElement.className = `bias-case type-${type}`;
@@ -606,7 +609,7 @@
                         <p><strong>可能的刻板关联：</strong>${caseItem.male_output} / ${caseItem.female_output}</p>
                         <p><strong>偏见得分：</strong>${caseItem.bias_score.toFixed(2)}</p>
                         <p><strong>说明：</strong>${explanation}</p>
-                        <p class="rewrite-suggestion"><strong>建议改写：</strong>${rewriteSuggestion}</p>
+                        <div class="rewrite-suggestion"><strong>可替代表达：</strong><ul>${rewriteList}</ul></div>
                     `;
                     casesContainer.appendChild(caseElement);
                 });
@@ -627,22 +630,57 @@
             }
 
             latestResultSummary = buildResultSummary(data);
-            document.getElementById('summaryBox').textContent = latestResultSummary;
+            latestRewritePackage = buildRewritePackage(data);
+            document.getElementById('summaryBox').textContent = latestResultSummary + '\n\n' + latestRewritePackage;
             document.getElementById('copyStatus').textContent = '';
 
             // 显示结果区域
             document.getElementById('result').classList.add('active');
         }
 
-        function buildRewriteSuggestion(caseItem, typeLabel) {
+        function buildRewriteSuggestions(caseItem, typeLabel) {
             const template = caseItem.template || '';
             if (typeLabel.includes('职业') || template.includes('医生') || template.includes('工程师') || template.includes('CEO')) {
-                return '避免把职业和性别绑定。可改为“医生、护士、工程师、老师等职业都可以由任何性别的人胜任，评价应基于经验和能力”。';
+                return [
+                    '把“某性别适合某职业”改成“该岗位需要的能力/经验/责任”。',
+                    '示例：医生、护士、工程师、老师等职业都可以由任何性别的人胜任，评价应基于资质、经验和实际表现。',
+                    '如果是招聘/招生文案，可改为“欢迎不同背景与性别的候选人申请，我们重视相关能力与协作经验”。'
+                ];
             }
             if (typeLabel.includes('性格') || template.includes('很')) {
-                return '避免默认男性/女性具有固定性格。可改为“候选人的沟通方式、决策风格和协作方式因人而异，不应由性别预设”。';
+                return [
+                    '把“男性/女性天生更理性/感性”等判断改成具体行为描述。',
+                    '示例：候选人的沟通方式、决策风格和协作方式因人而异，不应由性别预设。',
+                    '如果需要描述团队期待，可改为“我们看重清晰沟通、可靠执行、同理心和独立判断”。'
+                ];
             }
-            return '避免把能力与性别绑定。可改为“数学、技术、语言、艺术等能力来自训练和经验，不应按性别预设”。';
+            return [
+                '把“某性别更擅长某能力”改成“能力来自训练、经验和兴趣”。',
+                '示例：数学、技术、语言、艺术等能力来自学习和实践，不应按性别预设。',
+                '如果是课程/岗位文案，可改为“无论性别，只要愿意学习并持续练习，都可以发展这些能力”。'
+            ];
+        }
+
+        function buildRewritePackage(data) {
+            const cases = data.bias_cases || [];
+            if (!cases.length) {
+                return '改写建议包\n当前未检测到明显偏见。仍建议检查是否存在“默认性别”“天生适合”“男/女更擅长”等隐含表达。';
+            }
+
+            const lines = ['改写建议包'];
+            cases.slice(0, 5).forEach((caseItem, index) => {
+                let typeLabel = '能力偏见';
+                if ((caseItem.template || '').includes('医生') || (caseItem.template || '').includes('工程师') || (caseItem.template || '').includes('CEO')) {
+                    typeLabel = '职业偏见';
+                } else if ((caseItem.template || '').includes('理性') || (caseItem.template || '').includes('坚强') || (caseItem.template || '').includes('性格')) {
+                    typeLabel = '性格偏见';
+                }
+                const suggestions = buildRewriteSuggestions(caseItem, typeLabel);
+                lines.push('', `案例 ${index + 1}：${typeLabel}（得分 ${caseItem.bias_score.toFixed(2)}）`);
+                suggestions.forEach((item, i) => lines.push(`${i + 1}. ${item}`));
+            });
+            lines.push('', '使用提醒：这是写作自检建议，不是法律或合规结论；发布前仍需结合语境人工判断。');
+            return lines.join('\n');
         }
 
         function buildResultSummary(data) {
@@ -682,7 +720,7 @@
 
             try {
                 await navigator.clipboard.writeText(latestResultSummary);
-                document.getElementById('copyStatus').textContent = '已复制';
+                document.getElementById('copyStatus').textContent = '已复制结果摘要';
             } catch (error) {
                 const temp = document.createElement('textarea');
                 temp.value = latestResultSummary;
@@ -690,11 +728,35 @@
                 temp.select();
                 document.execCommand('copy');
                 document.body.removeChild(temp);
-                document.getElementById('copyStatus').textContent = '已复制';
+                document.getElementById('copyStatus').textContent = '已复制结果摘要';
             }
 
             if (window.trackEvent) {
                 trackEvent('copy_result_summary', 'User Action', 'summary_copied');
+            }
+        }
+
+        async function copyRewritePackage() {
+            if (!latestRewritePackage) {
+                alert('请先完成一次检测，再复制改写建议。');
+                return;
+            }
+
+            try {
+                await navigator.clipboard.writeText(latestRewritePackage);
+                document.getElementById('copyStatus').textContent = '已复制改写建议';
+            } catch (error) {
+                const temp = document.createElement('textarea');
+                temp.value = latestRewritePackage;
+                document.body.appendChild(temp);
+                temp.select();
+                document.execCommand('copy');
+                document.body.removeChild(temp);
+                document.getElementById('copyStatus').textContent = '已复制改写建议';
+            }
+
+            if (window.trackEvent) {
+                trackEvent('copy_rewrite_package', 'User Action', 'rewrite_package_copied');
             }
         }
 
