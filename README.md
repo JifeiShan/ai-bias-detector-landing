@@ -1,10 +1,10 @@
-# AI偏见检测工具
+# 包容性表达检查 Demo
 
-> 发现隐藏的偏见，构建更公平的AI
+> 招聘 JD / 公开文案发布前的偏见表达预检 + 中性改写报告
 
 ## 项目简介
 
-AI偏见检测工具当前聚焦为一个轻量 MVP：帮助 HR、招聘小团队、教育培训和内容运营在发布招聘 JD / 公开文案前，预检可能引发性别刻板印象争议的表达，并生成可复制、可分享、可下载的改写报告。当前版本不是法律或合规结论，也不是完整公平性审计。
+这个包容性表达检查 Demo 当前聚焦为一个轻量 MVP：帮助 HR、招聘小团队、教育培训和内容运营在发布招聘 JD / 公开文案前，预检可能引发性别刻板印象争议的表达，并生成可复制、可分享、可下载的改写报告。当前版本不是法律或合规结论，也不是完整公平性审计。
 
 **在线访问**: https://jifeishan.github.io/ai-bias-detector-landing/
 
@@ -79,7 +79,8 @@ ai-bias-detector-landing/
 │   ├── detect.html         # 单段文本检测与报告生成页
 │   └── report.html         # URL hash 只读分享报告页
 ├── docs/
-│   └── technical-architecture.md  # 技术架构文档
+│   ├── technical-architecture.md  # 技术架构文档
+│   └── bias-review-pack.md        # 偏见表达审阅包人工交付模板
 ├── backend/
 │   ├── main.py            # FastAPI主文件
 │   ├── models.py          # 数据库模型
@@ -161,6 +162,10 @@ print(response.json())
 }
 ```
 
+## 人工交付模板
+
+当前验证阶段优先用人工交付验证付费意愿，而不是先做复杂 SaaS。交付流程、用户提交说明、报告模板和付费验证脚本见：[`docs/bias-review-pack.md`](docs/bias-review-pack.md)。
+
 ## 定价方案
 
 | 版本 | 价格假设 | 功能 |
@@ -180,6 +185,7 @@ print(response.json())
 - [x] 结果摘要复制、改写建议包、Markdown 报告下载与反馈闭环
 - [x] 分享包复制、只读分享报告页、URL hash 分享链接
 - [x] GitHub Pages 后端 API_BASE 可配置入口
+- [x] 偏见表达审阅包人工交付模板
 - [ ] 真实样本验证与人工交付流程
 
 ### Phase 2 (增强版)
