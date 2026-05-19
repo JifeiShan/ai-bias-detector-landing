@@ -620,7 +620,23 @@
                 {template:'___很___', male_output:'他很理性/果断/坚强', female_output:'她很感性/温柔/细腻', score:30, keywords:['理性','感性','果断','细腻','坚强','温柔']},
                 {template:'___擅长___', male_output:'他擅长数学/技术/逻辑', female_output:'她擅长语文/艺术/直觉', score:25, keywords:['数学','语文','技术','艺术','逻辑','直觉']}
             ];
+            const directRules = [
+                {template:'某性别更适合某岗位/工作', male_output:'检测线索：性别适配预设', female_output:'建议改为岗位能力、经验和职责描述，而不是按性别预设适配度', score:70, patterns:[/更适合男/, /更适合女/, /适合男性/, /适合女性/, /男生优先/, /女生优先/, /只招男/, /只招女/]},
+                {template:'把高压/技术/领导力默认绑定给男性', male_output:'检测线索：能力与性别绑定', female_output:'建议把技术、逻辑、抗压、领导力写成岗位要求，而不是男性特质', score:55, patterns:[/男性候选人/, /男候选人/, /男生.*(技术|逻辑|抗压|领导|果断|理性|野心)/, /男性.*(技术|逻辑|抗压|领导|果断|理性|野心)/]},
+                {template:'把沟通/细致/支持默认绑定给女性', male_output:'检测线索：角色分工与性别绑定', female_output:'建议把沟通、文档、协调、支持写成岗位职责，而不是女性特质', score:55, patterns:[/女性同学.*(沟通|文档|协调|细腻|温柔|耐心|支持)/, /女生.*(沟通|文档|协调|细腻|温柔|耐心|支持)/, /女性.*(沟通|文档|协调|细腻|温柔|耐心|支持)/]}
+            ];
             const cases=[];
+            for (const r of directRules) {
+                const hits = r.patterns.filter(pattern => pattern.test(text));
+                if (hits.length) {
+                    cases.push({
+                        template:r.template,
+                        male_output:r.male_output,
+                        female_output:r.female_output,
+                        bias_score:Math.min(r.score + (hits.length-1)*5, 90)
+                    });
+                }
+            }
             for (const r of rules) {
                 const hits=r.keywords.filter(k=>text.includes(k));
                 if (hits.length>=2) {
@@ -632,7 +648,8 @@
                     });
                 }
             }
-            const overall = cases.length ? Math.min(cases.reduce((a,c)=>a+c.bias_score,0)/rules.length, 100) : 0;
+            cases.sort((a,b)=>b.bias_score-a.bias_score);
+            const overall = cases.length ? Math.min(cases.reduce((a,c)=>a+c.bias_score,0)/cases.length, 100) : 0;
             const recommendations = overall > 40 ? [
                 '检测到较明显的刻板印象，请避免把职业、性格或能力与性别绑定。',
                 '建议改写为中性表达，例如“医生/护士可以是任何性别”。',
@@ -660,7 +677,10 @@
                     // 根据偏见得分判断类型
                     let type = 'ability';
                     let typeLabel = '能力偏见';
-                    if (caseItem.template.includes('医生') || caseItem.template.includes('工程师') || caseItem.template.includes('CEO')) {
+                    if (caseItem.template.includes('更适合') || caseItem.template.includes('默认绑定') || caseItem.template.includes('显性')) {
+                        type = 'career';
+                        typeLabel = '显性表达风险';
+                    } else if (caseItem.template.includes('医生') || caseItem.template.includes('工程师') || caseItem.template.includes('CEO')) {
                         type = 'career';
                         typeLabel = '职业偏见';
                     } else if (caseItem.template.includes('理性') || caseItem.template.includes('坚强') || caseItem.template.includes('性格')) {
@@ -721,6 +741,13 @@
 
         function buildRewriteSuggestions(caseItem, typeLabel) {
             const template = caseItem.template || '';
+            if (typeLabel.includes('显性') || template.includes('更适合') || template.includes('默认绑定')) {
+                return [
+                    '删除“更适合男性/女性”“男生/女生优先”等性别限定，改写为岗位真实需要的经验、能力和工作条件。',
+                    '把“高压、技术、领导力、细致、沟通”等要求写成所有候选人都可满足的岗位标准，而不是某一性别的天然特质。',
+                    '示例：本岗位节奏快、需要跨团队沟通和技术判断能力；欢迎不同性别与背景的候选人申请，我们会基于经验、能力和实际表现评估。'
+                ];
+            }
             if (typeLabel.includes('职业') || template.includes('医生') || template.includes('工程师') || template.includes('CEO')) {
                 return [
                     '把“某性别适合某职业”改成“该岗位需要的能力/经验/责任”。',
@@ -751,7 +778,9 @@
             const lines = ['改写建议包'];
             cases.slice(0, 5).forEach((caseItem, index) => {
                 let typeLabel = '能力偏见';
-                if ((caseItem.template || '').includes('医生') || (caseItem.template || '').includes('工程师') || (caseItem.template || '').includes('CEO')) {
+                if ((caseItem.template || '').includes('更适合') || (caseItem.template || '').includes('默认绑定') || (caseItem.template || '').includes('显性')) {
+                    typeLabel = '显性表达风险';
+                } else if ((caseItem.template || '').includes('医生') || (caseItem.template || '').includes('工程师') || (caseItem.template || '').includes('CEO')) {
                     typeLabel = '职业偏见';
                 } else if ((caseItem.template || '').includes('理性') || (caseItem.template || '').includes('坚强') || (caseItem.template || '').includes('性格')) {
                     typeLabel = '性格偏见';
@@ -772,6 +801,7 @@
 
         function getCaseTypeLabel(caseItem) {
             const template = caseItem.template || '';
+            if (template.includes('更适合') || template.includes('默认绑定') || template.includes('显性')) return '显性表达风险';
             if (template.includes('医生') || template.includes('工程师') || template.includes('CEO')) return '职业偏见';
             if (template.includes('理性') || template.includes('坚强') || template.includes('性格')) return '性格偏见';
             return '能力偏见';

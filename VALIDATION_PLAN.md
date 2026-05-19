@@ -74,3 +74,8 @@
 ## 人工交付模板
 
 已新增 [`docs/bias-review-pack.md`](docs/bias-review-pack.md)，用于把 Demo 检测结果转成可人工交付的“偏见表达审阅包”：包含用户提交说明、审阅工作流、报告模板、人工复核 checklist、¥99-299/次付费验证脚本，以及何时才值得做批量检测/PDF/账号/API 的判断标准。
+
+
+## 样例报告
+
+已新增 [`docs/sample-bias-review-report.md`](docs/sample-bias-review-report.md)，用虚构 JD 展示审阅包交付物长什么样。它可以作为触达潜在用户时的示例材料，但不要声称它来自真实客户。

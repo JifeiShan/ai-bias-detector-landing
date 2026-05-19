@@ -80,7 +80,8 @@ ai-bias-detector-landing/
 │   └── report.html         # URL hash 只读分享报告页
 ├── docs/
 │   ├── technical-architecture.md  # 技术架构文档
-│   └── bias-review-pack.md        # 偏见表达审阅包人工交付模板
+│   ├── bias-review-pack.md        # 偏见表达审阅包人工交付模板
+│   └── sample-bias-review-report.md  # 虚构 JD 样例审阅报告
 ├── backend/
 │   ├── main.py            # FastAPI主文件
 │   ├── models.py          # 数据库模型
@@ -165,6 +166,8 @@ print(response.json())
 ## 人工交付模板
 
 当前验证阶段优先用人工交付验证付费意愿，而不是先做复杂 SaaS。交付流程、用户提交说明、报告模板和付费验证脚本见：[`docs/bias-review-pack.md`](docs/bias-review-pack.md)。
+
+样例交付物见：[`docs/sample-bias-review-report.md`](docs/sample-bias-review-report.md)，它用一段虚构 JD 展示风险摘要、逐条标注、替代表达和可直接复制的改写版本。
 
 ## 定价方案
 

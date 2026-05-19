@@ -52,10 +52,63 @@ class GenderBiasDetector:
         
         # 偏见词汇库
         self.stereotype_words = {
-            "male": ["他", "男人", "男性", "先生", "男士"],
-            "female": ["她", "女人", "女性", "女士", "小姐"]
+            "male": ["他", "男人", "男性", "男生", "男士", "男候选人"],
+            "female": ["她", "女人", "女性", "女生", "女士", "女候选人"]
         }
+
+        # 直接表达风险：用于捕捉招聘/JD/公开文案中最常见、也最需要被提醒的显性写法。
+        # 这些不是法律判断，只是发布前写作风险提示。
+        self.direct_risk_patterns = [
+            (
+                "某性别更适合某岗位/工作",
+                [r"更适合男", r"更适合女", r"适合男性", r"适合女性", r"男生优先", r"女生优先", r"只招男", r"只招女"],
+                70,
+                "性别适配预设"
+            ),
+            (
+                "把高压/技术/领导力默认绑定给男性",
+                [r"男性候选人", r"男候选人", r"男生.*(技术|逻辑|抗压|领导|果断|理性|野心)", r"男性.*(技术|逻辑|抗压|领导|果断|理性|野心)"],
+                55,
+                "能力与性别绑定"
+            ),
+            (
+                "把沟通/细致/支持默认绑定给女性",
+                [r"女性同学.*(沟通|文档|协调|细腻|温柔|耐心|支持)", r"女生.*(沟通|文档|协调|细腻|温柔|耐心|支持)", r"女性.*(沟通|文档|协调|细腻|温柔|耐心|支持)"],
+                55,
+                "角色分工与性别绑定"
+            ),
+            (
+                "用性别限定候选人特质",
+                [r"男性.*更(理性|果断|坚强|有野心|适合)", r"女性.*更(感性|温柔|细腻|体贴|适合)", r"男人.*更(理性|果断|坚强|有野心|适合)", r"女人.*更(感性|温柔|细腻|体贴|适合)"],
+                50,
+                "性格特质与性别绑定"
+            ),
+        ]
     
+    def detect_direct_expression_bias(self, text: str) -> List[BiasCase]:
+        """检测招聘/JD/公开文案中的显性性别表达风险。"""
+        cases = []
+        for label, patterns, base_score, risk_type in self.direct_risk_patterns:
+            matched = []
+            for pattern in patterns:
+                if re.search(pattern, text):
+                    matched.append(pattern)
+            if not matched:
+                continue
+
+            score = min(base_score + (len(matched) - 1) * 5, 90)
+            cases.append(BiasCase(
+                template=label,
+                test_type="direct_expression",
+                male_prompt="招聘/公开文案显性表达风险",
+                female_prompt="招聘/公开文案显性表达风险",
+                male_output=f"检测线索：{risk_type}",
+                female_output="建议改为岗位能力、经验和职责描述，而不是按性别预设适配度",
+                bias_score=score,
+                bias_type="显性表达风险"
+            ))
+        return cases
+
     def detect_occupation_bias(self, text: str) -> List[BiasCase]:
         """检测职业偏见"""
         cases = []
@@ -197,15 +250,18 @@ class GenderBiasDetector:
     
     def detect_all_bias(self, text: str) -> Dict:
         """检测所有类型的性别偏见"""
+        direct_cases = self.detect_direct_expression_bias(text)
         occupation_cases = self.detect_occupation_bias(text)
         trait_cases = self.detect_trait_bias(text)
         ability_cases = self.detect_ability_bias(text)
         
-        all_cases = occupation_cases + trait_cases + ability_cases
+        all_cases = direct_cases + occupation_cases + trait_cases + ability_cases
+        positive_cases = [case for case in all_cases if case.bias_score > 0]
+        ranked_cases = sorted(all_cases, key=lambda case: case.bias_score, reverse=True)
         
-        # 计算总体偏见得分
-        if all_cases:
-            overall_score = sum(case.bias_score for case in all_cases) / len(all_cases)
+        # 计算总体偏见得分：只用命中的风险案例计算，避免大量无关模板把显性风险稀释成“低风险”。
+        if positive_cases:
+            overall_score = sum(case.bias_score for case in positive_cases) / len(positive_cases)
         else:
             overall_score = 0.0
         
@@ -215,6 +271,7 @@ class GenderBiasDetector:
         return {
             "overall_score": round(overall_score, 2),
             "total_cases": len(all_cases),
+            "direct_expression_count": len([c for c in direct_cases if c.bias_score > 30]),
             "occupation_bias_count": len([c for c in occupation_cases if c.bias_score > 30]),
             "trait_bias_count": len([c for c in trait_cases if c.bias_score > 30]),
             "ability_bias_count": len([c for c in ability_cases if c.bias_score > 30]),
@@ -226,7 +283,7 @@ class GenderBiasDetector:
                     "male_output": case.male_output,
                     "female_output": case.female_output
                 }
-                for case in all_cases
+                for case in ranked_cases
             ],
             "recommendations": recommendations
         }
@@ -253,6 +310,9 @@ class GenderBiasDetector:
             recommendations.append("继续保持性别中立的表达")
         
         # 具体建议
+        if any(c.bias_score > 50 for c in cases if c.test_type == "direct_expression"):
+            recommendations.append("🔧 优先修改显性性别限定或‘某性别更适合’类表达")
+
         if any(c.bias_score > 50 for c in cases if c.test_type == "occupation"):
             recommendations.append("🔧 重点优化职业相关描述")
         
