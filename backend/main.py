@@ -3,9 +3,12 @@ AI偏见检测工具 - MVP后端
 """
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Dict, Optional
+import json
 import os
+from datetime import datetime, timezone
+from pathlib import Path
 from dotenv import load_dotenv
 
 # 加载环境变量
@@ -46,6 +49,28 @@ class DetectResponse(BaseModel):
     bias_cases: List[BiasCase]
     recommendations: List[str]
     model_used: str
+
+
+class FeedbackRequest(BaseModel):
+    """试用反馈：用于验证产品场景，而不是保存敏感原文。"""
+    usefulness: str = Field(..., min_length=1, max_length=40)
+    user_type: Optional[str] = Field(default=None, max_length=80)
+    use_case: Optional[str] = Field(default=None, max_length=200)
+    comment: Optional[str] = Field(default=None, max_length=1000)
+    contact: Optional[str] = Field(default=None, max_length=120)
+    score: Optional[float] = None
+    case_count: Optional[int] = None
+    model_used: Optional[str] = Field(default=None, max_length=80)
+
+
+class FeedbackResponse(BaseModel):
+    status: str
+    message: str
+    feedback_id: str
+
+
+DATA_DIR = Path(os.getenv("DATA_DIR", Path(__file__).resolve().parent / "data"))
+FEEDBACK_FILE = DATA_DIR / "feedback.jsonl"
 
 
 # 性别偏见检测模板
@@ -119,6 +144,29 @@ async def detect_bias(request: DetectRequest):
         bias_cases=bias_cases,
         recommendations=result['recommendations'],
         model_used=request.model
+    )
+
+
+@app.post("/api/feedback", response_model=FeedbackResponse)
+async def submit_feedback(request: FeedbackRequest):
+    """
+    收集试用反馈。默认只保存场景、评价和联系方式，不保存用户检测原文。
+    """
+    feedback_id = datetime.now(timezone.utc).strftime("fb_%Y%m%d%H%M%S_%f")
+    record = request.model_dump()
+    record.update({
+        "feedback_id": feedback_id,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    with FEEDBACK_FILE.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+    return FeedbackResponse(
+        status="ok",
+        message="感谢反馈！如果留下联系方式，我们会优先邀请你参与下一轮测试。",
+        feedback_id=feedback_id,
     )
 
 

@@ -227,6 +227,24 @@
             line-height: 1.6;
         }
 
+        .rewrite-suggestion {
+            margin-top: 10px;
+            padding: 10px 12px;
+            background: #f5f7ff;
+            border-radius: 8px;
+            color: #3f4a7a !important;
+        }
+
+        .risk-tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 999px;
+            background: #fff0f0;
+            color: #d64545;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
         .recommendations {
             margin-top: 20px;
             background: white;
@@ -280,6 +298,67 @@
             color: #4ecdc4;
             font-size: 13px;
             font-weight: 600;
+        }
+
+        .feedback-panel {
+            margin-top: 20px;
+            background: #fff;
+            padding: 18px;
+            border-radius: 8px;
+            border: 1px solid #e6e8ef;
+        }
+
+        .feedback-panel h3 {
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .feedback-panel p {
+            color: #666;
+            font-size: 14px;
+            line-height: 1.6;
+            margin-bottom: 12px;
+        }
+
+        .feedback-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .feedback-panel input,
+        .feedback-panel select,
+        .feedback-panel textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #d9dce7;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        .feedback-panel textarea {
+            min-height: 90px;
+        }
+
+        .feedback-status {
+            margin-left: 10px;
+            color: #4ecdc4;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .privacy-note {
+            color: #888 !important;
+            font-size: 12px !important;
+            margin-top: 10px;
+        }
+
+        @media (max-width: 640px) {
+            .feedback-grid {
+                grid-template-columns: 1fr;
+            }
         }
 
         .back-link {
@@ -351,6 +430,38 @@
                 <span class="copy-status" id="copyStatus"></span>
                 <div class="summary-box" id="summaryBox"></div>
             </div>
+
+            <div class="feedback-panel">
+                <h3>这个结果对你有用吗？</h3>
+                <p>我们正在找第一批真实文本样本验证准确性。你可以只提交评价和场景，不需要提交原文。</p>
+                <form id="feedbackForm">
+                    <div class="feedback-grid">
+                        <select id="feedback-usefulness" required>
+                            <option value="">请选择结果是否有用</option>
+                            <option value="useful_will_rewrite">有用，我会据此改文案</option>
+                            <option value="somewhat_useful">有点用，但还需要更具体</option>
+                            <option value="not_accurate">不太准 / 误报</option>
+                            <option value="curious_only">只是好奇体验</option>
+                        </select>
+                        <select id="feedback-user-type">
+                            <option value="">你的身份/场景</option>
+                            <option value="hr_recruiting">HR / 招聘文案</option>
+                            <option value="education_training">教育 / 培训 / 招生</option>
+                            <option value="content_marketing">内容运营 / 市场文案</option>
+                            <option value="research_student">研究者 / 学生</option>
+                            <option value="ngo_dei">公益 / DEI 相关</option>
+                            <option value="other">其他</option>
+                        </select>
+                    </div>
+                    <input id="feedback-use-case" maxlength="200" placeholder="你想检测什么文本？例如：招聘 JD、课程介绍、小红书文案、AI 输出..." />
+                    <textarea id="feedback-comment" maxlength="1000" placeholder="哪里有用？哪里不准？你还想检测哪些偏见类型？"></textarea>
+                    <input id="feedback-contact" maxlength="120" placeholder="可选：邮箱/微信/其他联系方式，用于邀请下一轮测试" />
+                    <button type="submit" class="btn-primary" style="margin-top:12px;padding:10px 16px;font-size:14px;">提交反馈</button>
+                    <button type="button" class="btn-secondary" style="margin-top:12px;padding:10px 16px;font-size:14px;" onclick="copyFeedbackPackage()">复制反馈内容</button>
+                    <span class="feedback-status" id="feedbackStatus"></span>
+                </form>
+                <p class="privacy-note">隐私说明：反馈默认不保存你的检测原文，只保存你填写的评价、场景和可选联系方式。当前 GitHub Pages 静态 Demo 会先在本机记录；你也可以点“复制反馈内容”粘贴到评论/私信。正式后端部署后会自动提交到 /api/feedback。</p>
+            </div>
         </div>
 
         <a href="../index.html" class="back-link">← 返回首页</a>
@@ -364,6 +475,11 @@
         if (window.trackEvent) {
             trackEvent('page_view', 'Detect Page', 'loaded');
         }
+
+        document.getElementById('feedbackForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await submitFeedback();
+        });
 
         document.getElementById('detectForm').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -480,15 +596,17 @@
                         explanation = '未检测到明显偏见';
                     }
                     
+                    const rewriteSuggestion = buildRewriteSuggestion(caseItem, typeLabel);
+                    const riskLevel = caseItem.bias_score >= 40 ? '高风险' : caseItem.bias_score > 0 ? '需留意' : '低风险';
                     const caseElement = document.createElement('div');
                     caseElement.className = `bias-case type-${type}`;
                     caseElement.innerHTML = `
-                        <h4>${typeLabel} (案例${index + 1})</h4>
-                        <p><strong>模板：</strong>${caseItem.template}</p>
-                        <p><strong>男性输出：</strong>${caseItem.male_output}</p>
-                        <p><strong>女性输出：</strong>${caseItem.female_output}</p>
+                        <h4>${typeLabel} (案例${index + 1}) <span class="risk-tag">${riskLevel}</span></h4>
+                        <p><strong>检测线索：</strong>${caseItem.template}</p>
+                        <p><strong>可能的刻板关联：</strong>${caseItem.male_output} / ${caseItem.female_output}</p>
                         <p><strong>偏见得分：</strong>${caseItem.bias_score.toFixed(2)}</p>
                         <p><strong>说明：</strong>${explanation}</p>
+                        <p class="rewrite-suggestion"><strong>建议改写：</strong>${rewriteSuggestion}</p>
                     `;
                     casesContainer.appendChild(caseElement);
                 });
@@ -516,6 +634,17 @@
             document.getElementById('result').classList.add('active');
         }
 
+        function buildRewriteSuggestion(caseItem, typeLabel) {
+            const template = caseItem.template || '';
+            if (typeLabel.includes('职业') || template.includes('医生') || template.includes('工程师') || template.includes('CEO')) {
+                return '避免把职业和性别绑定。可改为“医生、护士、工程师、老师等职业都可以由任何性别的人胜任，评价应基于经验和能力”。';
+            }
+            if (typeLabel.includes('性格') || template.includes('很')) {
+                return '避免默认男性/女性具有固定性格。可改为“候选人的沟通方式、决策风格和协作方式因人而异，不应由性别预设”。';
+            }
+            return '避免把能力与性别绑定。可改为“数学、技术、语言、艺术等能力来自训练和经验，不应按性别预设”。';
+        }
+
         function buildResultSummary(data) {
             const score = data.overall_score.toFixed(2);
             const caseCount = data.bias_cases ? data.bias_cases.length : 0;
@@ -536,6 +665,7 @@
                 `总体偏见得分：${score}/100（${riskLabel}）`,
                 `发现偏见案例数：${caseCount}`,
                 `检测模式：${data.model_used || 'api'}`,
+                '定位：公开文案发布前的偏见风险预检 + 改写助手（非法律/合规结论）',
                 '',
                 '主要建议：',
                 recommendations || '未检测到明显问题，建议继续用更多文本样本测试。',
@@ -568,6 +698,83 @@
             }
         }
 
+
+        function buildFeedbackPayload() {
+            return {
+                usefulness: document.getElementById('feedback-usefulness').value,
+                user_type: document.getElementById('feedback-user-type').value || null,
+                use_case: document.getElementById('feedback-use-case').value.trim() || null,
+                comment: document.getElementById('feedback-comment').value.trim() || null,
+                contact: document.getElementById('feedback-contact').value.trim() || null,
+                score: latestResultSummary ? Number(document.getElementById('scoreValue').textContent) : null,
+                case_count: document.querySelectorAll('.bias-case').length,
+                model_used: API_BASE ? 'api_or_fallback' : 'github-pages-demo'
+            };
+        }
+
+        async function copyFeedbackPackage() {
+            const payload = buildFeedbackPayload();
+            const text = [
+                'AI偏见检测 Demo 反馈',
+                `结果是否有用：${payload.usefulness || '未选择'}`,
+                `用户类型：${payload.user_type || '未填写'}`,
+                `使用场景：${payload.use_case || '未填写'}`,
+                `反馈：${payload.comment || '未填写'}`,
+                `联系方式：${payload.contact || '未填写'}`,
+                `检测得分：${payload.score ?? '未检测'}`,
+                `案例数：${payload.case_count}`,
+                '',
+                latestResultSummary || '尚未生成结果摘要'
+            ].join('\n');
+
+            try {
+                await navigator.clipboard.writeText(text);
+                document.getElementById('feedbackStatus').textContent = '反馈内容已复制，可粘贴到评论/私信';
+            } catch (error) {
+                document.getElementById('feedbackStatus').textContent = '复制失败，请手动复制结果摘要';
+            }
+        }
+
+        async function submitFeedback() {
+            const statusEl = document.getElementById('feedbackStatus');
+            const usefulness = document.getElementById('feedback-usefulness').value;
+            if (!usefulness) {
+                alert('请先选择结果是否有用');
+                return;
+            }
+
+            const payload = buildFeedbackPayload();
+
+            statusEl.textContent = '提交中...';
+            try {
+                if (API_BASE) {
+                    const response = await fetch(`${API_BASE}/api/feedback`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(payload)
+                    });
+                    if (!response.ok) throw new Error('反馈提交失败');
+                    await response.json();
+                } else {
+                    const localFeedback = JSON.parse(localStorage.getItem('bias_demo_feedback') || '[]');
+                    localFeedback.push({...payload, created_at: new Date().toISOString()});
+                    localStorage.setItem('bias_demo_feedback', JSON.stringify(localFeedback.slice(-50)));
+                }
+
+                statusEl.textContent = API_BASE ? '已提交，感谢反馈！' : '已记录在本机，感谢反馈！';
+                document.getElementById('feedbackForm').reset();
+
+                if (window.trackEvent) {
+                    trackEvent('submit_feedback', 'User Feedback', usefulness);
+                }
+            } catch (error) {
+                console.warn('反馈提交失败：', error);
+                statusEl.textContent = '提交失败，可复制摘要后通过评论/私信反馈';
+                if (window.trackEvent) {
+                    trackEvent('feedback_error', 'User Feedback', error.message);
+                }
+            }
+        }
 
         function fillSample(text) {
             document.getElementById('text-input').value = text;

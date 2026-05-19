@@ -13,6 +13,8 @@ AI偏见检测工具帮助用户自动检测AI输出中的性别、种族、年�
 - 🔍 **多类型偏见检测**: 性别、种族、年龄、职业
 - 📊 **标准化报告**: 偏见得分 + 具体案例 + 改进建议
 - 🎯 **简单易用**: 无需编程知识，复制粘贴即可
+- 📝 **可行动输出**: 风险摘要 + 命中线索 + 中性改写建议 + 可复制结果摘要
+- 💬 **反馈闭环**: 结果页可提交有用性、使用场景和联系方式，默认不保存检测原文
 - 📈 **API接口**: 支持开发者集成
 - 💰 **灵活定价**: 免费/专业/团队版本
 
@@ -24,14 +26,13 @@ AI偏见检测工具帮助用户自动检测AI输出中的性别、种族、年�
 
 ### 后端
 - **框架**: FastAPI
-- **数据库**: PostgreSQL
-- **缓存**: Redis
-- **队列**: Celery
+- **当前存储**: JSONL 轻量反馈收集（`backend/data/feedback.jsonl`，不提交到 Git）
+- **后续可扩展**: PostgreSQL / Redis / 批量任务队列
 
 ### 核心技术
-- **偏见检测**: AIF360, Fairlearn
-- **NLP**: OpenAI API, Anthropic API
-- **部署**: Docker + Railway/Vercel
+- **当前偏见检测**: 规则 + 模板的性别偏见 MVP，用于快速验证产品流程
+- **后续可扩展**: AIF360 / Fairlearn / OpenAI API / Anthropic API
+- **部署**: GitHub Pages（静态 Demo）+ Render/FastAPI（后端接口）
 
 ## 快速开始
 
@@ -100,6 +101,30 @@ response = requests.post(
 print(response.json())
 ```
 
+### 提交试用反馈
+
+```python
+import requests
+
+response = requests.post(
+    "http://localhost:8000/api/feedback",
+    json={
+        "usefulness": "useful_will_rewrite",
+        "user_type": "hr_recruiting",
+        "use_case": "招聘 JD",
+        "comment": "报告有用，但希望改写建议更具体",
+        "contact": "optional@example.com",
+        "score": 35.0,
+        "case_count": 2,
+        "model_used": "github-pages-demo"
+    }
+)
+
+print(response.json())
+```
+
+反馈默认不保存检测原文；轻量后端会写入 `backend/data/feedback.jsonl`（已被 `.gitignore` 忽略）。
+
 ### 响应示例
 
 ```json
@@ -134,8 +159,10 @@ print(response.json())
 ### Phase 1 (MVP) - 当前
 - [x] Landing Page上线
 - [x] 技术架构设计
-- [ ] 后端API开发
-- [ ] 性别偏见检测MVP
+- [x] GitHub Pages 静态 Demo
+- [x] 后端API开发（检测 + 反馈接口）
+- [x] 性别偏见检测MVP
+- [x] 结果摘要复制与反馈闭环
 - [ ] 用户系统
 
 ### Phase 2 (增强版)
