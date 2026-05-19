@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI偏见检测 - 文本分析</title>
+    <title>包容性表达检查 - 文本审阅报告</title>
     
     <!-- Google Analytics -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=GA_MEASUREMENT_ID"></script>
@@ -300,6 +300,22 @@
             font-weight: 600;
         }
 
+        .share-note {
+            margin-top: 12px;
+            color: #666;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .mode-note {
+            text-align: center;
+            color: #667eea;
+            font-size: 14px;
+            margin-top: -18px;
+            margin-bottom: 24px;
+            line-height: 1.6;
+        }
+
         .report-preview {
             margin-top: 20px;
             background: white;
@@ -404,9 +420,9 @@
 </head>
 <body>
     <div class="container">
-        <h1>AI偏见检测工具</h1>
-        <p class="subtitle">检测文本中的性别偏见，让AI更公平</p>
-        <p style="text-align:center;color:#667eea;font-size:14px;margin-top:-18px;margin-bottom:24px;">GitHub Pages Demo：无需后端，也可直接体验基础检测</p>
+        <h1>包容性表达检查工具</h1>
+        <p class="subtitle">招聘 JD / 公开文案发布前的包容性表达预检与改写助手</p>
+        <p class="mode-note" id="apiModeNote">GitHub Pages Demo：无需后端，也可直接体验基础检测</p>
 
         <form id="detectForm">
             <div class="form-group">
@@ -414,7 +430,7 @@
                 <textarea 
                     id="text-input" 
                     name="text" 
-                    placeholder="例如：医生是男性，护士是女性。工程师更理性，老师更感性..."
+                    placeholder="例如：粘贴一段招聘 JD、招聘宣传文案、课程介绍或对外发布文案，检查是否存在“某性别更适合某岗位/性格/能力”的隐含表达..."
                     required
                 ></textarea>
                 <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;">
@@ -455,7 +471,10 @@
                 <p style="color:#666;font-size:14px;line-height:1.6;">适合粘贴到报告、笔记或社交平台，方便试用者分享反馈。</p>
                 <button type="button" class="btn-secondary" style="margin-top:12px;padding:10px 16px;font-size:14px;" onclick="copyResultSummary()">复制结果摘要</button>
                 <button type="button" class="btn-secondary" style="margin-top:12px;padding:10px 16px;font-size:14px;" onclick="copyRewritePackage()">复制改写建议包</button>
+                <button type="button" class="btn-secondary" style="margin-top:12px;padding:10px 16px;font-size:14px;" onclick="copySharePackage()">复制分享包</button>
+                <button type="button" class="btn-secondary" style="margin-top:12px;padding:10px 16px;font-size:14px;" onclick="generateShareLink()">生成分享链接</button>
                 <span class="copy-status" id="copyStatus"></span>
+                <p class="share-note">隐私提醒：敏感文本建议只用“复制分享包”；“生成分享链接”会把报告摘要写入浏览器 URL，任何拿到链接的人都能看到该摘要，但不会保存检测原文到服务器。</p>
                 <div class="summary-box" id="summaryBox"></div>
             </div>
 
@@ -503,14 +522,38 @@
     </div>
 
     <script>
-        const API_BASE = window.location.hostname.includes('github.io') ? '' : 'http://localhost:8000'; // GitHub Pages 使用本地 Demo；本地开发使用 FastAPI
+        function resolveApiBase() {
+            const params = new URLSearchParams(window.location.search);
+            if (params.has('api')) {
+                const apiParam = (params.get('api') || '').trim().replace(/\/$/, '');
+                if (apiParam) {
+                    localStorage.setItem('bias_api_base', apiParam);
+                    return apiParam;
+                }
+                localStorage.removeItem('bias_api_base');
+                return '';
+            }
+            const storedApi = (localStorage.getItem('bias_api_base') || '').trim().replace(/\/$/, '');
+            if (storedApi) return storedApi;
+            return window.location.hostname.includes('github.io') ? '' : 'http://localhost:8000';
+        }
+
+        const API_BASE = resolveApiBase();
         let latestResultSummary = '';
         let latestRewritePackage = '';
         let latestMarkdownReport = '';
+        let latestReportData = null;
 
         // 页面加载事件
         if (window.trackEvent) {
             trackEvent('page_view', 'Detect Page', 'loaded');
+        }
+
+        const apiModeNote = document.getElementById('apiModeNote');
+        if (apiModeNote) {
+            apiModeNote.textContent = API_BASE
+                ? `后端模式：检测和反馈会优先提交到 ${API_BASE}（如不可用则自动切换本地 Demo）`
+                : '静态 Demo 模式：无需后端即可体验；反馈会先保存在本机，可复制后通过评论/私信发送。若已有后端，可在 URL 加 ?api=https://你的后端域名 启用。';
         }
 
         document.getElementById('feedbackForm').addEventListener('submit', async (e) => {
@@ -667,6 +710,7 @@
             latestResultSummary = buildResultSummary(data);
             latestRewritePackage = buildRewritePackage(data);
             latestMarkdownReport = buildMarkdownReport(data);
+            latestReportData = buildShareReportData(data);
             document.getElementById('summaryBox').textContent = latestResultSummary + '\n\n' + latestRewritePackage;
             document.getElementById('markdownReportBox').textContent = latestMarkdownReport;
             document.getElementById('copyStatus').textContent = '';
@@ -720,16 +764,53 @@
             return lines.join('\n');
         }
 
+        function getRiskLabel(score) {
+            if (score >= 40) return '高风险';
+            if (score > 0) return '中低风险';
+            return '低风险';
+        }
+
+        function getCaseTypeLabel(caseItem) {
+            const template = caseItem.template || '';
+            if (template.includes('医生') || template.includes('工程师') || template.includes('CEO')) return '职业偏见';
+            if (template.includes('理性') || template.includes('坚强') || template.includes('性格')) return '性格偏见';
+            return '能力偏见';
+        }
+
+        function buildShareReportData(data) {
+            const score = Number((data.overall_score || 0).toFixed(2));
+            const cases = (data.bias_cases || []).slice(0, 5).map((caseItem, index) => {
+                const typeLabel = getCaseTypeLabel(caseItem);
+                return {
+                    index: index + 1,
+                    type_label: typeLabel,
+                    template: caseItem.template || '',
+                    stereotype_pair: `${caseItem.male_output || ''} / ${caseItem.female_output || ''}`,
+                    bias_score: Number((caseItem.bias_score || 0).toFixed(2)),
+                    suggestions: buildRewriteSuggestions(caseItem, typeLabel)
+                };
+            });
+            return {
+                version: 1,
+                title: 'AI 偏见风险预检报告',
+                generated_at: new Date().toISOString(),
+                score,
+                risk_label: getRiskLabel(score),
+                model_used: data.model_used || 'api',
+                case_count: data.bias_cases ? data.bias_cases.length : 0,
+                recommendations: (data.recommendations || []).slice(0, 5),
+                cases,
+                positioning: '公开文案发布前的偏见风险预检 + 改写助手（非法律/合规结论）',
+                privacy_note: '分享链接只包含报告摘要、命中线索和改写建议；请不要把敏感原文放进公开链接。',
+                cta: '想批量审阅招聘/JD/营销文案？把 10 条文本发来，我给你一份样例审阅报告。'
+            };
+        }
+
         function buildMarkdownReport(data) {
             const score = data.overall_score.toFixed(2);
             const generatedAt = new Date().toLocaleString('zh-CN');
             const cases = data.bias_cases || [];
-            let riskLabel = '低风险';
-            if (data.overall_score >= 40) {
-                riskLabel = '高风险';
-            } else if (data.overall_score > 0) {
-                riskLabel = '中低风险';
-            }
+            const riskLabel = getRiskLabel(data.overall_score);
 
             const lines = [
                 '# AI 偏见风险预检报告',
@@ -757,13 +838,7 @@
             }
 
             cases.slice(0, 5).forEach((caseItem, index) => {
-                let typeLabel = '能力偏见';
-                const template = caseItem.template || '';
-                if (template.includes('医生') || template.includes('工程师') || template.includes('CEO')) {
-                    typeLabel = '职业偏见';
-                } else if (template.includes('理性') || template.includes('坚强') || template.includes('性格')) {
-                    typeLabel = '性格偏见';
-                }
+                const typeLabel = getCaseTypeLabel(caseItem);
                 const suggestions = buildRewriteSuggestions(caseItem, typeLabel);
                 lines.push(`### 案例 ${index + 1}：${typeLabel}`);
                 lines.push('');
@@ -787,12 +862,7 @@
         function buildResultSummary(data) {
             const score = data.overall_score.toFixed(2);
             const caseCount = data.bias_cases ? data.bias_cases.length : 0;
-            let riskLabel = '低风险';
-            if (data.overall_score >= 40) {
-                riskLabel = '高风险';
-            } else if (data.overall_score > 0) {
-                riskLabel = '中低风险';
-            }
+            const riskLabel = getRiskLabel(data.overall_score);
 
             const recommendations = (data.recommendations || [])
                 .slice(0, 3)
@@ -862,6 +932,98 @@
         }
 
 
+        function buildSharePackage() {
+            if (!latestReportData) return '';
+            const lines = [
+                'AI 偏见风险预检分享包',
+                `风险等级：${latestReportData.risk_label}`,
+                `总体得分：${latestReportData.score}/100`,
+                `发现案例：${latestReportData.case_count} 个`,
+                `定位：${latestReportData.positioning}`,
+                '',
+                '主要建议：'
+            ];
+            if (latestReportData.recommendations.length) {
+                latestReportData.recommendations.slice(0, 3).forEach((item, index) => lines.push(`${index + 1}. ${item}`));
+            } else {
+                lines.push('未检测到明显性别偏见，但仍建议人工检查默认性别、天生适合等隐含表达。');
+            }
+            if (latestReportData.cases.length) {
+                lines.push('', '风险案例与可替代表达：');
+                latestReportData.cases.slice(0, 3).forEach(item => {
+                    lines.push(`- 案例 ${item.index}：${item.type_label}（${item.bias_score}/100）`);
+                    lines.push(`  检测线索：${item.template}`);
+                    lines.push(`  替代表达：${(item.suggestions || []).slice(0, 2).join(' / ')}`);
+                });
+            }
+            lines.push('', `隐私说明：${latestReportData.privacy_note}`);
+            lines.push(`下一步：${latestReportData.cta}`);
+            return lines.join('\n');
+        }
+
+        async function copySharePackage() {
+            const text = buildSharePackage();
+            if (!text) {
+                alert('请先完成一次检测，再复制分享包。');
+                return;
+            }
+            await copyText(text, '已复制分享包');
+            if (window.trackEvent) {
+                trackEvent('copy_share_package', 'User Action', 'share_package_copied');
+            }
+        }
+
+        function encodeSharePayload(payload) {
+            const json = JSON.stringify(payload);
+            const binary = encodeURIComponent(json).replace(/%([0-9A-F]{2})/g, (_, p1) => String.fromCharCode(parseInt(p1, 16)));
+            return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        }
+
+        async function generateShareLink() {
+            if (!latestReportData) {
+                alert('请先完成一次检测，再生成分享链接。');
+                return;
+            }
+            const okToShare = confirm('分享链接会把报告摘要、命中线索和改写建议写入 URL。任何拿到链接的人都能看到这些内容。请确认没有敏感原文或不适合公开的信息。敏感内容建议用“复制分享包”。');
+            if (!okToShare) {
+                document.getElementById('copyStatus').textContent = '已取消生成分享链接';
+                return;
+            }
+            const payload = {...latestReportData, generated_at: new Date().toISOString()};
+            const encoded = encodeSharePayload(payload);
+            const reportUrl = new URL('report.html', window.location.href);
+            reportUrl.hash = `data=${encoded}`;
+            if (reportUrl.href.length > 7000) {
+                alert('这份报告摘要较长，不适合放入 URL。请优先使用“复制分享包”或下载 Markdown 报告。');
+                return;
+            }
+            try {
+                await copyText(reportUrl.href, '分享链接已复制');
+            } catch (error) {
+                console.warn('分享链接复制失败：', error);
+                document.getElementById('copyStatus').textContent = '分享链接已生成，已打开新页面';
+            }
+            window.open(reportUrl.href, '_blank');
+            if (window.trackEvent) {
+                trackEvent('generate_share_link', 'User Action', `url_length_${reportUrl.href.length}`);
+            }
+        }
+
+        async function copyText(text, successMessage) {
+            try {
+                await navigator.clipboard.writeText(text);
+            } catch (error) {
+                const temp = document.createElement('textarea');
+                temp.value = text;
+                document.body.appendChild(temp);
+                temp.select();
+                const ok = document.execCommand('copy');
+                document.body.removeChild(temp);
+                if (!ok) throw error;
+            }
+            document.getElementById('copyStatus').textContent = successMessage;
+        }
+
         function downloadMarkdownReport() {
             if (!latestMarkdownReport) {
                 alert('请先完成一次检测，再下载报告。');
@@ -890,7 +1052,7 @@
                 contact: document.getElementById('feedback-contact').value.trim() || null,
                 score: latestResultSummary ? Number(document.getElementById('scoreValue').textContent) : null,
                 case_count: document.querySelectorAll('.bias-case').length,
-                model_used: API_BASE ? 'api_or_fallback' : 'github-pages-demo'
+                model_used: API_BASE ? `api_or_fallback:${API_BASE}` : 'github-pages-demo'
             };
         }
 

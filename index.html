@@ -172,67 +172,67 @@
 <body>
     <div class="container">
         <header>
-            <h1>🔍 AI偏见检测工具</h1>
-            <p class="subtitle">发现隐藏的偏见，构建更公平的AI</p>
+            <h1>🔍 包容性表达检查 Demo</h1>
+            <p class="subtitle">招聘 JD / 对外文案发布前的偏见风险预检 + 改写报告</p>
             
             <div class="user-types">
-                <span class="user-type">🎓 学术研究者</span>
-                <span class="user-type">🏢 企业合规团队</span>
-                <span class="user-type">📰 新闻记者</span>
-                <span class="user-type">⚖️ 政策制定者</span>
+                <span class="user-type">💼 HR / 招聘小团队</span>
+                <span class="user-type">📣 内容运营 / 市场文案</span>
+                <span class="user-type">🎓 教育培训 / 招生</span>
+                <span class="user-type">🤝 NGO / DEI 相关</span>
             </div>
         </header>
         
         <div class="features">
             <div class="feature-card">
                 <div class="feature-icon">⚖️</div>
-                <h3 class="feature-title">性别偏见检测</h3>
-                <p class="feature-desc">检测AI输出中的性别刻板印象、职业偏见和歧视性语言</p>
+                <h3 class="feature-title">招聘 JD 风险预检</h3>
+                <p class="feature-desc">检查招聘描述、雇主品牌文案中是否把岗位、性格或能力与性别绑定</p>
             </div>
             
             <div class="feature-card">
                 <div class="feature-icon">🌍</div>
-                <h3 class="feature-title">种族偏见检测</h3>
-                <p class="feature-desc">识别种族刻板印象、文化偏见和隐性歧视</p>
+                <h3 class="feature-title">中性改写建议</h3>
+                <p class="feature-desc">为每个风险案例生成 2-3 条更包容、更中性的替代表达</p>
             </div>
             
             <div class="feature-card">
                 <div class="feature-icon">📅</div>
-                <h3 class="feature-title">年龄偏见检测</h3>
-                <p class="feature-desc">发现年龄歧视和代际偏见</p>
+                <h3 class="feature-title">可交付报告</h3>
+                <p class="feature-desc">生成可复制分享包、只读分享链接和 Markdown 报告，适合发给同事或客户</p>
             </div>
             
             <div class="feature-card">
                 <div class="feature-icon">💼</div>
-                <h3 class="feature-title">职业偏见检测</h3>
-                <p class="feature-desc">检测职业刻板印象和阶级偏见</p>
+                <h3 class="feature-title">反馈闭环</h3>
+                <p class="feature-desc">默认不保存检测原文，只收集有用性、场景和误报反馈，用真实样本改进</p>
             </div>
         </div>
         
         <div class="cta-section">
-            <h2 class="cta-title">🚀 立即体验</h2>
-            <p class="cta-desc">无需等待，现在就开始检测文本中的性别偏见</p>
+            <h2 class="cta-title">🚀 先跑一段招聘 / 对外文案</h2>
+            <p class="cta-desc">粘贴一段 JD、招聘宣传、课程介绍或营销文案，生成偏见风险摘要与改写报告</p>
             
             <a href="frontend/detect.html" onclick="trackEvent('click_start_detect', 'Landing Page CTA', 'main_button')" style="display: inline-block; padding: 18px 48px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 8px; font-size: 18px; font-weight: 600; box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4); transition: all 0.3s; margin-bottom: 40px;">
-                🔍 开始检测
+                🔍 生成审阅报告
             </a>
             
-            <h2 class="cta-title" style="margin-top: 50px;">🎯 加入等待名单</h2>
-            <p class="cta-desc">获取更多功能和优先支持</p>
+            <h2 class="cta-title" style="margin-top: 50px;">🎯 正在找 10 个真实样本</h2>
+            <p class="cta-desc">重点验证：报告是否能帮你改文案、能否作为交付物发给同事/客户</p>
             
             <div class="waitlist-form">
                 <p style="font-size:1.05em;color:#555;line-height:1.8;margin-bottom:16px;">
-                    这是一个可直接体验的原型 Demo，定位是“公开文案发布前的偏见风险预检 + 改写助手”，不是法律或合规结论。你可以用招聘 JD、课程介绍、宣传文案或 AI 输出试跑一遍，并在结果页直接提交反馈。
+                    这是一个可直接体验的原型 Demo，定位是“招聘 JD / 公开文案发布前的包容性表达检查 + 改写报告”，不是法律或合规结论。你可以用招聘 JD、招聘宣传、课程介绍、营销文案或 AI 输出试跑一遍，生成可复制分享包、分享链接和 Markdown 报告。
                 </p>
                 <p style="font-size:0.95em;color:#666;line-height:1.7;margin-bottom:18px;">
-                    当前最需要 10 个真实文本样本来验证：报告是否有用、误报在哪里、用户是否愿意据此改文案。反馈默认不保存检测原文，只记录你填写的场景、评价和可选联系方式。
+                    当前最需要 10 个真实文本样本来验证：报告是否有用、误报在哪里、用户是否愿意据此改文案，是否愿意为“偏见表达审阅包 / 批量招聘文案审阅”付小钱。反馈默认不保存检测原文，只记录你填写的场景、评价和可选联系方式。
                 </p>
-                <a href="frontend/detect.html" onclick="trackEvent('click_waitlist_demo', 'Landing Page CTA', 'waitlist_section')" style="display:inline-block;padding:12px 28px;background:#667eea;color:white;text-decoration:none;border-radius:8px;font-weight:600;">先体验 Demo 并提交反馈</a>
+                <a href="frontend/detect.html" onclick="trackEvent('click_waitlist_demo', 'Landing Page CTA', 'waitlist_section')" style="display:inline-block;padding:12px 28px;background:#667eea;color:white;text-decoration:none;border-radius:8px;font-weight:600;">体验 Demo 并生成报告</a>
             </div>
         </div>
         
         <footer>
-            <p>© 2026 AI偏见检测工具 | 让AI更公平、更透明</p>
+            <p>© 2026 包容性表达检查 Demo | 让公开文案更稳、更包容</p>
         </footer>
     </div>
     

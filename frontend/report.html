@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 偏见风险预检报告</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            background: #f5f7ff;
+            color: #263238;
+            line-height: 1.7;
+            padding: 24px;
+        }
+        .container {
+            max-width: 860px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 18px;
+            box-shadow: 0 18px 50px rgba(75, 87, 139, 0.18);
+            overflow: hidden;
+        }
+        header {
+            padding: 36px 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        h1 { font-size: 30px; margin-bottom: 10px; }
+        .subtitle { opacity: 0.92; font-size: 15px; }
+        main { padding: 34px 40px; }
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+            margin-bottom: 26px;
+        }
+        .metric {
+            border: 1px solid #e2e7ff;
+            background: #fbfcff;
+            border-radius: 12px;
+            padding: 16px;
+        }
+        .metric-label { color: #667; font-size: 13px; margin-bottom: 6px; }
+        .metric-value { font-size: 24px; font-weight: 800; color: #5662d6; }
+        .section { margin: 26px 0; }
+        .section h2 { font-size: 21px; margin-bottom: 12px; color: #30364a; }
+        ul { padding-left: 22px; }
+        li { margin: 6px 0; }
+        .case-card {
+            border-left: 4px solid #667eea;
+            border-radius: 12px;
+            background: #f8f9ff;
+            padding: 18px;
+            margin: 14px 0;
+        }
+        .case-card h3 { font-size: 17px; margin-bottom: 8px; }
+        .tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 999px;
+            background: #fff0f0;
+            color: #d64545;
+            font-size: 12px;
+            font-weight: 700;
+            margin-left: 6px;
+        }
+        .notice {
+            background: #fff8e6;
+            border: 1px solid #ffe3a3;
+            color: #6b4c00;
+            padding: 14px 16px;
+            border-radius: 10px;
+            margin: 18px 0;
+        }
+        .cta {
+            background: #eefaf6;
+            border: 1px solid #bcebdc;
+            border-radius: 12px;
+            padding: 18px;
+            color: #1f5d4b;
+            font-weight: 700;
+        }
+        .actions {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+        button, a.button {
+            border: none;
+            border-radius: 8px;
+            padding: 11px 16px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .primary { background: #667eea; color: white; }
+        .secondary { background: #eef0f7; color: #4a4f66; }
+        .status { color: #1f9d70; font-weight: 700; font-size: 13px; align-self: center; }
+        .error {
+            padding: 40px;
+            text-align: center;
+            color: #666;
+        }
+        @media (max-width: 680px) {
+            body { padding: 12px; }
+            header, main { padding: 24px; }
+            .summary-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="app">
+        <div class="error">正在读取报告链接...</div>
+    </div>
+
+    <script>
+        function decodeSharePayload(encoded) {
+            const base64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
+            const padded = base64 + '='.repeat((4 - base64.length % 4) % 4);
+            const binary = atob(padded);
+            const percentEncoded = Array.from(binary, ch => '%' + ch.charCodeAt(0).toString(16).padStart(2, '0')).join('');
+            return JSON.parse(decodeURIComponent(percentEncoded));
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function buildShareText(data) {
+            const lines = [
+                'AI 偏见风险预检报告',
+                `风险等级：${data.risk_label}`,
+                `总体得分：${data.score}/100`,
+                `发现案例：${data.case_count} 个`,
+                `定位：${data.positioning}`,
+                '',
+                '主要建议：'
+            ];
+            (data.recommendations || []).slice(0, 3).forEach((item, index) => lines.push(`${index + 1}. ${item}`));
+            if (data.cases && data.cases.length) {
+                lines.push('', '风险案例：');
+                data.cases.slice(0, 3).forEach(item => {
+                    lines.push(`- 案例 ${item.index}：${item.type_label}（${item.bias_score}/100）`);
+                    lines.push(`  线索：${item.template}`);
+                    lines.push(`  建议：${(item.suggestions || []).slice(0, 2).join(' / ')}`);
+                });
+            }
+            lines.push('', data.privacy_note || '请勿在公开链接中放入敏感原文。');
+            lines.push(data.cta || '想批量审阅招聘/JD/营销文案？把 10 条文本发来，我给你一份样例审阅报告。');
+            return lines.join('\n');
+        }
+
+        async function copyReportText(data) {
+            const text = buildShareText(data);
+            try {
+                await navigator.clipboard.writeText(text);
+                document.getElementById('copyStatus').textContent = '已复制报告摘要';
+            } catch (error) {
+                const temp = document.createElement('textarea');
+                temp.value = text;
+                document.body.appendChild(temp);
+                temp.select();
+                document.execCommand('copy');
+                document.body.removeChild(temp);
+                document.getElementById('copyStatus').textContent = '已复制报告摘要';
+            }
+        }
+
+        function renderReport(data) {
+            const generatedAt = data.generated_at ? new Date(data.generated_at).toLocaleString('zh-CN') : '未知';
+            const recs = (data.recommendations || []).map(item => `<li>${escapeHtml(item)}</li>`).join('') || '<li>未检测到明显问题，建议继续人工检查语境。</li>';
+            const cases = (data.cases || []).map(item => `
+                <div class="case-card">
+                    <h3>案例 ${escapeHtml(item.index)}：${escapeHtml(item.type_label)} <span class="tag">${escapeHtml(item.bias_score)}/100</span></h3>
+                    <p><strong>检测线索：</strong>${escapeHtml(item.template)}</p>
+                    <p><strong>刻板关联：</strong>${escapeHtml(item.stereotype_pair)}</p>
+                    <p><strong>可替代表达：</strong></p>
+                    <ul>${(item.suggestions || []).map(s => `<li>${escapeHtml(s)}</li>`).join('')}</ul>
+                </div>
+            `).join('') || '<p>未检测到明显性别偏见。仍建议检查是否存在默认性别、天生适合等隐含表达。</p>';
+
+            document.getElementById('app').innerHTML = `
+                <header>
+                    <h1>${escapeHtml(data.title || 'AI 偏见风险预检报告')}</h1>
+                    <p class="subtitle">${escapeHtml(data.positioning || '公开文案发布前的偏见风险预检 + 改写助手')}</p>
+                </header>
+                <main>
+                    <div class="notice">隐私提醒：这是一份通过 URL 分享的只读报告摘要。任何拿到链接的人都能看到这些摘要信息；请不要把敏感原文放进公开链接。</div>
+                    <div class="summary-grid">
+                        <div class="metric"><div class="metric-label">风险等级</div><div class="metric-value">${escapeHtml(data.risk_label || '未知')}</div></div>
+                        <div class="metric"><div class="metric-label">总体得分</div><div class="metric-value">${escapeHtml(data.score ?? '0')}/100</div></div>
+                        <div class="metric"><div class="metric-label">发现案例</div><div class="metric-value">${escapeHtml(data.case_count ?? 0)}</div></div>
+                    </div>
+                    <p style="color:#667;font-size:14px;">生成时间：${escapeHtml(generatedAt)}｜检测模式：${escapeHtml(data.model_used || 'demo')}</p>
+                    <section class="section">
+                        <h2>主要建议</h2>
+                        <ul>${recs}</ul>
+                    </section>
+                    <section class="section">
+                        <h2>风险案例与改写建议</h2>
+                        ${cases}
+                    </section>
+                    <section class="section">
+                        <div class="cta">${escapeHtml(data.cta || '想批量审阅招聘/JD/营销文案？把 10 条文本发来，我给你一份样例审阅报告。')}</div>
+                    </section>
+                    <div class="actions">
+                        <button class="primary" onclick='copyReportText(window.reportData)'>复制报告摘要</button>
+                        <a class="button secondary" href="detect.html">返回检测页</a>
+                        <span class="status" id="copyStatus"></span>
+                    </div>
+                </main>
+            `;
+        }
+
+        try {
+            const hash = window.location.hash || '';
+            const match = hash.match(/data=([^&]+)/);
+            if (!match) throw new Error('缺少报告数据');
+            window.reportData = decodeSharePayload(match[1]);
+            renderReport(window.reportData);
+        } catch (error) {
+            document.getElementById('app').innerHTML = `
+                <div class="error">
+                    <h1>无法读取报告</h1>
+                    <p>分享链接可能不完整或已损坏。请回到检测页重新生成分享链接。</p>
+                    <p style="margin-top:18px;"><a class="button primary" href="detect.html">返回检测页</a></p>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>
