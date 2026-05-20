@@ -75,13 +75,15 @@ uvicorn main:app --reload
 ```
 ai-bias-detector-landing/
 ├── index.html              # Landing Page
+├── outreach/first-wave.md   # 第一轮真实触达执行单
 ├── frontend/
 │   ├── detect.html         # 单段文本检测与报告生成页
 │   └── report.html         # URL hash 只读分享报告页
 ├── docs/
 │   ├── technical-architecture.md  # 技术架构文档
 │   ├── bias-review-pack.md        # 偏见表达审阅包人工交付模板
-│   └── sample-bias-review-report.md  # 虚构 JD 样例审阅报告
+│   ├── sample-bias-review-report.md  # 虚构 JD 样例审阅报告
+│   └── offer.md                  # 偏见表达审阅包可售卖 offer
 ├── backend/
 │   ├── main.py            # FastAPI主文件
 │   ├── models.py          # 数据库模型
