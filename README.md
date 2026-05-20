@@ -76,6 +76,7 @@ uvicorn main:app --reload
 ai-bias-detector-landing/
 ├── index.html              # Landing Page
 ├── outreach/first-wave.md   # 第一轮真实触达执行单
+├── outreach/today-action-card.md  # 今日触达行动卡：拿到第一份真实/脱敏样本
 ├── frontend/
 │   ├── detect.html         # 单段文本检测与报告生成页
 │   └── report.html         # URL hash 只读分享报告页
