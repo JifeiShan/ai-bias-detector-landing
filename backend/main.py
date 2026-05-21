@@ -33,7 +33,7 @@ app.add_middleware(
 # 数据模型
 class DetectRequest(BaseModel):
     text: str
-    model: str = "gpt-3.5-turbo"  # 支持的模型
+    model: str = "rule-engine"  # 默认只用规则引擎；配置 LLM 后可传具体模型，或用 LLM_MODEL 环境变量
     bias_types: List[str] = ["gender"]  # 检测类型
 
 
