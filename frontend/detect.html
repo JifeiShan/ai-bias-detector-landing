@@ -620,13 +620,23 @@
                 {template:'___很___', male_output:'他很理性/果断/坚强', female_output:'她很感性/温柔/细腻', score:30, keywords:['理性','感性','果断','细腻','坚强','温柔']},
                 {template:'___擅长___', male_output:'他擅长数学/技术/逻辑', female_output:'她擅长语文/艺术/直觉', score:25, keywords:['数学','语文','技术','艺术','逻辑','直觉']}
             ];
+            const inclusiveContextPatterns = [
+                /(任何性别|不限性别|无论男女|男性或女性|女性或男性|不分性别|无性别限制|都可以|均可).{0,20}(医生|护士|工程师|老师|CEO|秘书|程序员|设计师)/,
+                /(医生|护士|工程师|老师|CEO|秘书|程序员|设计师).{0,20}(任何性别|不限性别|无论男女|男性或女性|女性或男性|不分性别|无性别限制|都可以|均可)/,
+                /(男性也可以|女性也可以).{0,20}(医生|护士|工程师|老师|CEO|秘书|程序员|设计师)/,
+                /(医生|护士|工程师|老师|CEO|秘书|程序员|设计师).{0,20}(男性也可以|女性也可以)/
+            ];
+            const hasInclusiveContext = inclusiveContextPatterns.some(pattern => pattern.test(text));
             const directRules = [
                 {template:'某性别更适合某岗位/工作', male_output:'检测线索：性别适配预设', female_output:'建议改为岗位能力、经验和职责描述，而不是按性别预设适配度', score:70, patterns:[/更适合男/, /更适合女/, /适合男性/, /适合女性/, /男生优先/, /女生优先/, /只招男/, /只招女/]},
+                {template:'职业-性别绑定风险：将医生默认描述为男性', male_output:'检测线索：医生被直接绑定到男性', female_output:'建议改为“医生不应被默认限定为某一性别”，或直接描述医生的职责、资质和经验', score:45, patterns:[/医生.{0,8}(是|为|都是|通常是|一般是|应该是)?男(性|人)?/, /男(性|人)?医生/, /他.{0,8}(是|为|担任|作为).{0,4}医生/]},
+                {template:'职业-性别绑定风险：将护士默认描述为女性', male_output:'检测线索：护士被直接绑定到女性', female_output:'建议改为“护士不应被默认限定为某一性别”，或直接描述护理职责、资质和经验', score:45, patterns:[/护士.{0,8}(是|为|都是|通常是|一般是|应该是)?女(性|人)?/, /女(性|人)?护士/, /她.{0,8}(是|为|担任|作为).{0,4}护士/]},
                 {template:'把高压/技术/领导力默认绑定给男性', male_output:'检测线索：能力与性别绑定', female_output:'建议把技术、逻辑、抗压、领导力写成岗位要求，而不是男性特质', score:55, patterns:[/男性候选人/, /男候选人/, /男生.*(技术|逻辑|抗压|领导|果断|理性|野心)/, /男性.*(技术|逻辑|抗压|领导|果断|理性|野心)/]},
                 {template:'把沟通/细致/支持默认绑定给女性', male_output:'检测线索：角色分工与性别绑定', female_output:'建议把沟通、文档、协调、支持写成岗位职责，而不是女性特质', score:55, patterns:[/女性同学.*(沟通|文档|协调|细腻|温柔|耐心|支持)/, /女生.*(沟通|文档|协调|细腻|温柔|耐心|支持)/, /女性.*(沟通|文档|协调|细腻|温柔|耐心|支持)/]}
             ];
             const cases=[];
             for (const r of directRules) {
+                if (hasInclusiveContext && r.template.includes('职业-性别绑定风险')) continue;
                 const hits = r.patterns.filter(pattern => pattern.test(text));
                 if (hits.length) {
                     cases.push({
@@ -677,7 +687,7 @@
                     // 根据偏见得分判断类型
                     let type = 'ability';
                     let typeLabel = '能力偏见';
-                    if (caseItem.template.includes('更适合') || caseItem.template.includes('默认绑定') || caseItem.template.includes('显性')) {
+                    if (caseItem.template.includes('更适合') || caseItem.template.includes('默认绑定') || caseItem.template.includes('显性') || caseItem.template.includes('职业-性别绑定')) {
                         type = 'career';
                         typeLabel = '显性表达风险';
                     } else if (caseItem.template.includes('医生') || caseItem.template.includes('工程师') || caseItem.template.includes('CEO')) {

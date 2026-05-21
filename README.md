@@ -17,6 +17,7 @@
 - 🔗 **分享报告资产**: 支持复制分享包、生成只读分享链接（URL hash，无账号/无后端）、下载 Markdown 报告
 - 💬 **反馈闭环**: 结果页可提交有用性、使用场景和联系方式，默认不保存检测原文
 - ⚙️ **后端可配置**: GitHub Pages 默认静态 Demo；也可用 `?api=https://your-api.example.com` 或 localStorage 启用 FastAPI 后端
+- 🧠 **可选大模型复核**: 后端配置 `LLM_API_KEY` / `OPENAI_API_KEY` 后，会在规则引擎之后调用 OpenAI-compatible chat-completions 做语境复核；未配置或调用失败时自动回退规则引擎
 - 💰 **早期收费假设**: 优先验证 ¥99-299/次的偏见表达审阅包，而不是先做 SaaS 订阅/API
 
 ## 技术架构
@@ -29,11 +30,13 @@
 ### 后端
 - **框架**: FastAPI
 - **当前存储**: JSONL 轻量反馈收集（`backend/data/feedback.jsonl`，不提交到 Git）
+- **可选 LLM**: `backend/llm_analyzer.py` 支持 OpenAI-compatible chat-completions 二次复核
 - **后续可扩展**: PostgreSQL / Redis / 批量任务队列
 
 ### 核心技术
-- **当前偏见检测**: 规则 + 模板的性别偏见 MVP，用于快速验证产品流程
-- **后续可扩展**: AIF360 / Fairlearn / OpenAI API / Anthropic API
+- **第一层检测**: 规则 + 模板的性别偏见 MVP，用于快速验证产品流程，并覆盖“男性优先 / 医生默认男性 / 护士默认女性”等常见表达
+- **第二层检测**: 可选大模型语境复核，用于识别规则漏报、生成更自然的改写建议，并降低“纠偏表达”误报
+- **后续可扩展**: AIF360 / Fairlearn / OpenAI-compatible LLM / Anthropic API
 - **部署**: GitHub Pages（静态 Demo）+ Render/FastAPI（后端接口）
 
 ## 快速开始
@@ -57,9 +60,17 @@ pip install -r requirements.txt
 创建 `.env` 文件:
 
 ```env
-DATABASE_URL=postgresql://user:password@localhost/ai_bias
-OPENAI_API_KEY=your_openai_key
-ANTHROPIC_API_KEY=your_anthropic_key
+# 可选：反馈数据目录，默认 backend/data/
+DATA_DIR=./data
+
+# 可选：启用大模型语境复核。兼容 OpenAI / Zhipu / MiMo 等 OpenAI-compatible chat-completions 服务。
+LLM_API_KEY=your_llm_api_key
+LLM_BASE_URL=https://api.openai.com/v1
+LLM_MODEL=gpt-4o-mini
+LLM_TIMEOUT_SECONDS=20
+
+# 也兼容 OPENAI_API_KEY；未配置任何 key 时，系统只使用规则引擎。
+# OPENAI_API_KEY=your_openai_key
 ```
 
 ### 4. 启动服务
@@ -87,6 +98,8 @@ ai-bias-detector-landing/
 │   └── offer.md                  # 偏见表达审阅包可售卖 offer
 ├── backend/
 │   ├── main.py            # FastAPI主文件
+│   ├── bias_detector.py   # 规则引擎：显性表达、职业-性别绑定、能力/性格模板
+│   ├── llm_analyzer.py    # 可选 OpenAI-compatible 大模型语境复核
 │   ├── models.py          # 数据库模型
 │   └── requirements.txt   # Python依赖
 └── README.md
@@ -102,8 +115,8 @@ import requests
 response = requests.post(
     "http://localhost:8000/api/detect",
     json={
-        "text": "测试文本",
-        "model": "gpt-3.5-turbo",
+        "text": "医生是男性",
+        "model": "gpt-4o-mini",
         "bias_types": ["gender"]
     }
 )

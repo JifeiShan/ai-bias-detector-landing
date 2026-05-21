@@ -83,7 +83,12 @@ GENDER_TEMPLATES = [
 ]
 
 
-from bias_detector import GenderBiasDetector
+try:
+    from bias_detector import GenderBiasDetector
+    from llm_analyzer import analyze_bias_with_llm, llm_configured
+except ModuleNotFoundError:  # 支持从项目根目录以 backend.main 导入测试
+    from .bias_detector import GenderBiasDetector
+    from .llm_analyzer import analyze_bias_with_llm, llm_configured
 
 # 初始化检测器
 detector = GenderBiasDetector()
@@ -125,9 +130,23 @@ async def detect_bias(request: DetectRequest):
     if not request.text:
         raise HTTPException(status_code=400, detail="文本不能为空")
     
-    # 使用真实检测器
+    # 第一层：规则引擎，快速、稳定、无外部依赖。
     result = detector.detect_all_bias(request.text)
-    
+    model_used = "rule-engine"
+
+    # 第二层：可选 LLM 语境复核。有 LLM_API_KEY / OPENAI_API_KEY 时启用；失败时自动回退规则结果。
+    llm_result = await analyze_bias_with_llm(request.text, request.model if request.model != "rule-engine" else None)
+    if llm_result:
+        combined_cases = result['cases'] + llm_result.get('cases', [])
+        combined_cases = sorted(combined_cases, key=lambda case: case.get('bias_score', 0), reverse=True)[:5]
+        result['cases'] = combined_cases
+        result['overall_score'] = max(result['overall_score'], round(float(llm_result.get('overall_score', 0)), 2))
+        result['recommendations'] = (llm_result.get('recommendations') or []) + result['recommendations']
+        result['recommendations'] = list(dict.fromkeys(result['recommendations']))[:6]
+        model_used = f"rule-engine+llm:{llm_result.get('model_used', request.model)}"
+    elif llm_configured():
+        model_used = "rule-engine+llm-fallback"
+
     # 转换为响应格式
     bias_cases = [
         BiasCase(
@@ -143,7 +162,7 @@ async def detect_bias(request: DetectRequest):
         overall_score=result['overall_score'],
         bias_cases=bias_cases,
         recommendations=result['recommendations'],
-        model_used=request.model
+        model_used=model_used
     )
 
 

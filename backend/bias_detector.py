@@ -58,6 +58,40 @@ class GenderBiasDetector:
 
         # 直接表达风险：用于捕捉招聘/JD/公开文案中最常见、也最需要被提醒的显性写法。
         # 这些不是法律判断，只是发布前写作风险提示。
+        self.inclusive_context_patterns = [
+            r"(任何性别|不限性别|无论男女|男性或女性|女性或男性|不分性别|无性别限制|都可以|均可).{0,20}(医生|护士|工程师|老师|CEO|秘书|程序员|设计师)",
+            r"(医生|护士|工程师|老师|CEO|秘书|程序员|设计师).{0,20}(任何性别|不限性别|无论男女|男性或女性|女性或男性|不分性别|无性别限制|都可以|均可)",
+            r"(男性也可以|女性也可以).{0,20}(医生|护士|工程师|老师|CEO|秘书|程序员|设计师)",
+            r"(医生|护士|工程师|老师|CEO|秘书|程序员|设计师).{0,20}(男性也可以|女性也可以)",
+        ]
+
+        self.occupation_gender_risk_patterns = [
+            (
+                "将医生默认描述为男性",
+                [r"医生.{0,8}(是|为|都是|通常是|一般是|应该是)?男(性|人)?", r"男(性|人)?医生", r"他.{0,8}(是|为|担任|作为).{0,4}医生"],
+                "建议改为“医生不应被默认限定为某一性别”，或直接描述医生的职责、资质和经验",
+                45,
+            ),
+            (
+                "将护士默认描述为女性",
+                [r"护士.{0,8}(是|为|都是|通常是|一般是|应该是)?女(性|人)?", r"女(性|人)?护士", r"她.{0,8}(是|为|担任|作为).{0,4}护士"],
+                "建议改为“护士不应被默认限定为某一性别”，或直接描述护理职责、资质和经验",
+                45,
+            ),
+            (
+                "将工程师/程序员默认描述为男性",
+                [r"(工程师|程序员).{0,8}(是|为|都是|通常是|一般是|应该是)?男(性|人)?", r"男(性|人)?(工程师|程序员)", r"他.{0,8}(是|为|担任|作为).{0,4}(工程师|程序员)"],
+                "建议改为基于技能、经验和职责描述工程师/程序员，而不是默认其性别",
+                45,
+            ),
+            (
+                "将秘书/助理默认描述为女性",
+                [r"(秘书|助理).{0,8}(是|为|都是|通常是|一般是|应该是)?女(性|人)?", r"女(性|人)?(秘书|助理)", r"她.{0,8}(是|为|担任|作为).{0,4}(秘书|助理)"],
+                "建议改为基于协调、行政和沟通职责描述岗位，而不是默认其性别",
+                45,
+            ),
+        ]
+
         self.direct_risk_patterns = [
             (
                 "某性别更适合某岗位/工作",
@@ -85,6 +119,33 @@ class GenderBiasDetector:
             ),
         ]
     
+    def _has_inclusive_context(self, text: str) -> bool:
+        """判断文本是否正在表达“任何性别都可以”等包容性语境，避免把纠偏表达误判为偏见。"""
+        return any(re.search(pattern, text) for pattern in self.inclusive_context_patterns)
+
+    def detect_occupation_gender_binding(self, text: str) -> List[BiasCase]:
+        """检测职业与性别的直接绑定，例如“医生是男性”“护士是女性”。"""
+        if self._has_inclusive_context(text):
+            return []
+
+        cases = []
+        for label, patterns, suggestion, base_score in self.occupation_gender_risk_patterns:
+            matched = [pattern for pattern in patterns if re.search(pattern, text)]
+            if not matched:
+                continue
+            score = min(base_score + (len(matched) - 1) * 5, 80)
+            cases.append(BiasCase(
+                template=label,
+                test_type="occupation_gender_binding",
+                male_prompt="职业与性别默认绑定风险",
+                female_prompt="职业与性别默认绑定风险",
+                male_output="检测线索：职业被直接绑定到某一性别",
+                female_output=suggestion,
+                bias_score=score,
+                bias_type="职业-性别绑定风险"
+            ))
+        return cases
+
     def detect_direct_expression_bias(self, text: str) -> List[BiasCase]:
         """检测招聘/JD/公开文案中的显性性别表达风险。"""
         cases = []
@@ -111,6 +172,9 @@ class GenderBiasDetector:
 
     def detect_occupation_bias(self, text: str) -> List[BiasCase]:
         """检测职业偏见"""
+        if self._has_inclusive_context(text):
+            return []
+
         cases = []
         
         for male_role, female_role, template in self.occupation_templates[:3]:
@@ -251,11 +315,12 @@ class GenderBiasDetector:
     def detect_all_bias(self, text: str) -> Dict:
         """检测所有类型的性别偏见"""
         direct_cases = self.detect_direct_expression_bias(text)
+        occupation_gender_cases = self.detect_occupation_gender_binding(text)
         occupation_cases = self.detect_occupation_bias(text)
         trait_cases = self.detect_trait_bias(text)
         ability_cases = self.detect_ability_bias(text)
         
-        all_cases = direct_cases + occupation_cases + trait_cases + ability_cases
+        all_cases = direct_cases + occupation_gender_cases + occupation_cases + trait_cases + ability_cases
         positive_cases = [case for case in all_cases if case.bias_score > 0]
         ranked_cases = sorted(all_cases, key=lambda case: case.bias_score, reverse=True)
         
@@ -271,8 +336,8 @@ class GenderBiasDetector:
         return {
             "overall_score": round(overall_score, 2),
             "total_cases": len(all_cases),
-            "direct_expression_count": len([c for c in direct_cases if c.bias_score > 30]),
-            "occupation_bias_count": len([c for c in occupation_cases if c.bias_score > 30]),
+            "direct_expression_count": len([c for c in direct_cases if c.bias_score > 30]) + len([c for c in occupation_gender_cases if c.bias_score > 30]),
+            "occupation_bias_count": len([c for c in occupation_cases if c.bias_score > 30]) + len([c for c in occupation_gender_cases if c.bias_score > 30]),
             "trait_bias_count": len([c for c in trait_cases if c.bias_score > 30]),
             "ability_bias_count": len([c for c in ability_cases if c.bias_score > 30]),
             "cases": [
@@ -312,6 +377,9 @@ class GenderBiasDetector:
         # 具体建议
         if any(c.bias_score > 50 for c in cases if c.test_type == "direct_expression"):
             recommendations.append("🔧 优先修改显性性别限定或‘某性别更适合’类表达")
+
+        if any(c.bias_score > 40 for c in cases if c.test_type == "occupation_gender_binding"):
+            recommendations.append("🔧 避免把医生、护士、工程师等职业默认绑定到某一性别")
 
         if any(c.bias_score > 50 for c in cases if c.test_type == "occupation"):
             recommendations.append("🔧 重点优化职业相关描述")
